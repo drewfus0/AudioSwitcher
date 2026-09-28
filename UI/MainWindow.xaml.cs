@@ -211,6 +211,8 @@ namespace AudioSwitcher.UI
             Hide();
         }
 
+        public bool IsClosed { get; private set; }
+
         private void Window_StateChanged(object sender, EventArgs e)
         {
             if (WindowState == WindowState.Minimized && SettingsService.Instance.Settings.CloseToTray)
@@ -221,15 +223,39 @@ namespace AudioSwitcher.UI
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
-            if (!_isExplicitExit && SettingsService.Instance.Settings.CloseToTray)
+            if (_isExplicitExit)
+            {
+                return;
+            }
+
+            if (SettingsService.Instance.Settings.CloseToTray)
             {
                 e.Cancel = true;
                 Hide();
             }
+            else
+            {
+                ExitApplication();
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            IsClosed = true;
+
+            AudioDeviceManager.Instance.DevicesUpdated -= OnDevicesUpdated;
+            PrioritySwitcherService.Instance.DeviceAutoSwitched -= OnDeviceAutoSwitched;
+            SettingsService.Instance.SettingsChanged -= OnSettingsChanged;
         }
 
         public void ShowAndActivate()
         {
+            if (IsClosed)
+            {
+                return;
+            }
+
             Show();
             if (WindowState == WindowState.Minimized)
             {
@@ -242,7 +268,10 @@ namespace AudioSwitcher.UI
         public void ExitApplication()
         {
             _isExplicitExit = true;
-            Close();
+            if (!IsClosed)
+            {
+                Close();
+            }
             Application.Current.Shutdown();
         }
     }

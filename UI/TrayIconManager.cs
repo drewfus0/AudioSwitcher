@@ -11,13 +11,10 @@ namespace AudioSwitcher.UI
     public class TrayIconManager : IDisposable
     {
         private readonly NotifyIcon _notifyIcon;
-        private readonly MainWindow _mainWindow;
         private readonly ContextMenuStrip _contextMenu;
 
-        public TrayIconManager(MainWindow mainWindow)
+        public TrayIconManager()
         {
-            _mainWindow = mainWindow;
-
             _contextMenu = new ContextMenuStrip();
             _contextMenu.Opening += ContextMenu_Opening;
 
@@ -41,12 +38,12 @@ namespace AudioSwitcher.UI
                 Visible = true
             };
 
-            _notifyIcon.DoubleClick += (s, e) => _mainWindow.ShowAndActivate();
+            _notifyIcon.DoubleClick += (s, e) => App.CurrentApp.ShowMainWindow();
             _notifyIcon.MouseClick += (s, e) =>
             {
                 if (e.Button == MouseButtons.Left)
                 {
-                    _mainWindow.ShowAndActivate();
+                    App.CurrentApp.ShowMainWindow();
                 }
             };
 
@@ -99,7 +96,7 @@ namespace AudioSwitcher.UI
             {
                 Font = new Font(_contextMenu.Font, System.Drawing.FontStyle.Bold)
             };
-            openItem.Click += (s, e) => _mainWindow.ShowAndActivate();
+            openItem.Click += (s, e) => App.CurrentApp.ShowMainWindow();
             _contextMenu.Items.Add(openItem);
 
             _contextMenu.Items.Add(new ToolStripSeparator());
@@ -109,7 +106,7 @@ namespace AudioSwitcher.UI
             exitItem.Click += (s, e) =>
             {
                 _notifyIcon.Visible = false;
-                _mainWindow.ExitApplication();
+                App.CurrentApp.ExitApplication();
             };
             _contextMenu.Items.Add(exitItem);
         }

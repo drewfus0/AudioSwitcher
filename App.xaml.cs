@@ -118,24 +118,47 @@ namespace AudioSwitcher
             _ = AudioDeviceManager.Instance;
             _ = PrioritySwitcherService.Instance;
 
-            // Create MainWindow
-            _mainWindow = new MainWindow();
-
             // Initialize system tray icon
-            _trayIconManager = new TrayIconManager(_mainWindow);
+            _trayIconManager = new TrayIconManager();
 
             // Check if started with --minimized flag (e.g. from Windows Startup)
             bool startMinimized = e.Args.Contains("--minimized");
 
             if (!startMinimized)
             {
-                _mainWindow.ShowAndActivate();
+                ShowMainWindow();
             }
-            else
+        }
+
+        public static App CurrentApp => (App)Current;
+
+        public void ShowMainWindow()
+        {
+            Dispatcher.Invoke(() =>
             {
-                // App is loaded and living in tray; MainWindow stays hidden
-                _mainWindow.WindowState = WindowState.Minimized;
-            }
+                if (_mainWindow == null || _mainWindow.IsClosed)
+                {
+                    _mainWindow = new MainWindow();
+                }
+
+                _mainWindow.ShowAndActivate();
+            });
+        }
+
+        public void ExitApplication()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _trayIconManager?.Dispose();
+                if (_mainWindow != null && !_mainWindow.IsClosed)
+                {
+                    _mainWindow.ExitApplication();
+                }
+                else
+                {
+                    Shutdown();
+                }
+            });
         }
 
         protected override void OnExit(ExitEventArgs e)
