@@ -71,7 +71,7 @@ namespace AudioSwitcher.Services
 
             var flow = category.GetDataFlow();
             var activeDevices = _deviceManager.GetDevices(flow)
-                .Where(d => d.IsActive)
+                .Where(d => d.IsActive && !_settingsService.IsDeviceIgnored(d.Id, d.Name))
                 .ToList();
 
             if (activeDevices.Count == 0)

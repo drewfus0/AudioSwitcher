@@ -118,7 +118,7 @@ namespace AudioSwitcher.UI
         {
             var menu = new ToolStripMenuItem(title);
             var devices = AudioDeviceManager.Instance.GetDevices(category.GetDataFlow())
-                .Where(d => d.IsActive)
+                .Where(d => d.IsActive && !SettingsService.Instance.IsDeviceIgnored(d.Id, d.Name))
                 .ToList();
 
             if (devices.Count == 0)

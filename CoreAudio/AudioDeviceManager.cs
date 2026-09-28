@@ -225,6 +225,10 @@ namespace AudioSwitcher.CoreAudio
                 {
                     _policyConfigClient.SetDefaultEndpoint(deviceId, ERole.eConsole);
                     _policyConfigClient.SetDefaultEndpoint(deviceId, ERole.eMultimedia);
+                    if (Services.SettingsService.Instance.Settings.MatchOutputCommsToSound)
+                    {
+                        _policyConfigClient.SetDefaultEndpoint(deviceId, ERole.eCommunications);
+                    }
                 }
                 else if (category == AudioCategory.OutputCommunications)
                 {
@@ -234,6 +238,10 @@ namespace AudioSwitcher.CoreAudio
                 {
                     _policyConfigClient.SetDefaultEndpoint(deviceId, ERole.eConsole);
                     _policyConfigClient.SetDefaultEndpoint(deviceId, ERole.eMultimedia);
+                    if (Services.SettingsService.Instance.Settings.MatchInputCommsToSound)
+                    {
+                        _policyConfigClient.SetDefaultEndpoint(deviceId, ERole.eCommunications);
+                    }
                 }
                 else if (category == AudioCategory.InputCommunications)
                 {

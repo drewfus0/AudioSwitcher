@@ -20,6 +20,20 @@ namespace AudioSwitcher.Services
         }
     }
 
+    public class IgnoredDeviceEntry
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+
+        public IgnoredDeviceEntry() { }
+
+        public IgnoredDeviceEntry(string id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
+    }
+
     public class AppSettings
     {
         public List<PriorityDeviceEntry> OutputSoundPriorities { get; set; } = new();
@@ -27,11 +41,16 @@ namespace AudioSwitcher.Services
         public List<PriorityDeviceEntry> InputSoundPriorities { get; set; } = new();
         public List<PriorityDeviceEntry> InputCommsPriorities { get; set; } = new();
 
+        public List<IgnoredDeviceEntry> IgnoredDevices { get; set; } = new();
+
         public bool AutoSwitchEnabled { get; set; } = true;
         public bool AutoSwitchOutputSound { get; set; } = true;
         public bool AutoSwitchOutputComms { get; set; } = true;
         public bool AutoSwitchInputSound { get; set; } = true;
         public bool AutoSwitchInputComms { get; set; } = true;
+
+        public bool MatchOutputCommsToSound { get; set; } = false;
+        public bool MatchInputCommsToSound { get; set; } = false;
 
         public bool ShowSwitchNotifications { get; set; } = true;
         public bool StartWithWindows { get; set; } = false;
@@ -61,12 +80,32 @@ namespace AudioSwitcher.Services
             Settings = LoadSettings();
         }
 
+        public bool IsCategoryMirrored(AudioCategory category) => category switch
+        {
+            AudioCategory.OutputCommunications => Settings.MatchOutputCommsToSound,
+            AudioCategory.InputCommunications => Settings.MatchInputCommsToSound,
+            _ => false
+        };
+
+        public void SetCategoryMirrored(AudioCategory category, bool mirrored)
+        {
+            if (category == AudioCategory.OutputCommunications)
+            {
+                Settings.MatchOutputCommsToSound = mirrored;
+            }
+            else if (category == AudioCategory.InputCommunications)
+            {
+                Settings.MatchInputCommsToSound = mirrored;
+            }
+            Save();
+        }
+
         public List<PriorityDeviceEntry> GetPriorities(AudioCategory category) => category switch
         {
             AudioCategory.OutputSound => Settings.OutputSoundPriorities,
-            AudioCategory.OutputCommunications => Settings.OutputCommsPriorities,
+            AudioCategory.OutputCommunications => Settings.MatchOutputCommsToSound ? Settings.OutputSoundPriorities : Settings.OutputCommsPriorities,
             AudioCategory.InputSound => Settings.InputSoundPriorities,
-            AudioCategory.InputCommunications => Settings.InputCommsPriorities,
+            AudioCategory.InputCommunications => Settings.MatchInputCommsToSound ? Settings.InputSoundPriorities : Settings.InputCommsPriorities,
             _ => Settings.OutputSoundPriorities
         };
 
@@ -102,6 +141,62 @@ namespace AudioSwitcher.Services
                     break;
             }
             Save();
+        }
+
+        public bool IsDeviceIgnored(string? id, string? name)
+        {
+            if (Settings.IgnoredDevices == null || Settings.IgnoredDevices.Count == 0)
+                return false;
+
+            return Settings.IgnoredDevices.Any(d =>
+                (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(d.Id) && string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(d.Name) && string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        public void IgnoreDevice(string id, string name)
+        {
+            if (string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(name))
+                return;
+
+            if (!IsDeviceIgnored(id, name))
+            {
+                Settings.IgnoredDevices.Add(new IgnoredDeviceEntry(id, name));
+                RemoveDeviceFromAllPriorities(id, name);
+                Save();
+            }
+        }
+
+        public void UnignoreDevice(string id, string name)
+        {
+            Settings.IgnoredDevices.RemoveAll(d =>
+                (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(d.Id) && string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(d.Name) && string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)));
+            Save();
+        }
+
+        public void UnignoreAllDevices()
+        {
+            Settings.IgnoredDevices.Clear();
+            Save();
+        }
+
+        public void RemoveDeviceFromAllPriorities(string id, string name)
+        {
+            var categories = new[]
+            {
+                AudioCategory.OutputSound,
+                AudioCategory.OutputCommunications,
+                AudioCategory.InputSound,
+                AudioCategory.InputCommunications
+            };
+
+            foreach (var cat in categories)
+            {
+                var list = GetPriorities(cat);
+                list.RemoveAll(p =>
+                    (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(p.Id) && string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(p.Name) && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)));
+            }
         }
 
         public void Save()

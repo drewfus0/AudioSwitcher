@@ -11,6 +11,10 @@ A native Windows Taskbar & System Tray application that manages audio input and 
   - 🎧 **Output - Communications**: Dedicated playback for voice calls (Discord, Microsoft Teams, Zoom, Slack).
   - 🎤 **Input - Sound**: Default microphone for recording and system audio capture.
   - 🎙️ **Input - Communications**: Dedicated microphone for voice calls.
+- **Sound & Communications Synchronization**:
+  - Optional **🔗 Match Sound** setting for Output (Playback) and Input (Microphone).
+  - Automatically mirrors Sound device routing for voice call applications (Discord, Teams, Zoom) so they always use the same device without requiring a duplicate priority list.
+  - Can be toggled on/off instantly from either the **Communications tabs** or the **Settings tab**.
 - **Dynamic Priority Engine**:
   - Configure an ordered priority list for each of the 4 audio categories.
   - When a higher-priority device is connected/powered on (e.g. Bluetooth headphones or USB DAC), the app **automatically switches** to it in real time.
@@ -24,6 +28,11 @@ A native Windows Taskbar & System Tray application that manages audio input and 
   - Real-time hardware plug/unplug detection via `IMMNotificationClient`.
   - Native default device routing using `IPolicyConfig` COM interface.
   - Robust device matching by endpoint ID and friendly name fallback (handles moving devices to different USB ports).
+- **Device Filtering & Ignore List**:
+  - Instant real-time **Search / Filter** bar on every priority list.
+  - **🚫 Hide / Exclude Devices** you never use (e.g. monitor speakers, virtual cables, unused digital outputs) with a single click.
+  - Excluded devices are automatically filtered out of priority lists, dropdown suggestions, auto-switching, and system tray menus.
+  - Dedicated **Hidden & Ignored Devices** manager in the Settings tab to easily restore or unhide devices at any time.
 - **Settings & Startup**:
   - Optional notification balloons on automatic switch.
   - Option to start minimized to tray.

@@ -109,7 +109,7 @@ namespace AudioSwitcher
                     MessageBoxButton.OK,
                     MessageBoxImage.Information
                 );
-                Shutdown();
+                Shutdown(0);
                 return;
             }
 

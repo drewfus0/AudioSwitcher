@@ -1,0 +1,63 @@
+==========================================
+    AUDIOSWITCHER - COREAUDIO TEST        
+==========================================
+Total audio devices detected: 53
+
+--- OUTPUT DEVICES (Render) ---
+  * Audio Output (Not Present) 
+  * NVIDIA Output (NVIDIA High Definition Audio) (Not Present) 
+  * Speakers (Sonic Studio Virtual Mixer) (Disabled) 
+  * Digital Audio (HDMI) (High Definition Audio Device) (Not Present) 
+  * ROG PG279Q (NVIDIA High Definition Audio) (Not Present) 
+  * Headphones (Qudelix-5K) (Connected) 
+  * CABLE In 16ch (VB-Audio Virtual Cable) (Connected) 
+  * Audio Output (Not Present) 
+  * Headset (FIIO EH11 Hands-Free) (Unplugged) 
+  * NVIDIA Output (NVIDIA High Definition Audio) (Not Present) 
+  * Speakers (Realtek USB Audio) (Disabled) 
+  * Headphones (RØDE VideoMic NTG) (Connected) 
+  * Speakers (Qudelix-5K USB DAC/MIC 48KHz) (Connected) [DEFAULT SOUND] [DEFAULT COMMS] 
+  * NVIDIA Output (NVIDIA High Definition Audio) (Not Present) 
+  * CABLE Input (VB-Audio Virtual Cable) (Connected) 
+  * Headphones (FIIO EH11) (Unplugged) 
+  * Headphones (FIIO EH11) (Not Present) 
+  * Realtek Digital Output (Realtek USB Audio) (Disabled) 
+  * Audio Output (Not Present) 
+  * Speakers (Steam Streaming Speakers) (Disabled) 
+  * NVIDIA Output (NVIDIA High Definition Audio) (Not Present) 
+  * Headphones (Realtek USB Audio) (Unplugged) 
+  * Speakers (Steam Streaming Microphone) (Disabled) 
+  * Headphones (RØDE XCM-50) (Connected) 
+  * ROG PG279Q (NVIDIA High Definition Audio) (Disabled) 
+  * ROG PG279Q (NVIDIA High Definition Audio) (Disabled) 
+  * NVIDIA Output (NVIDIA High Definition Audio) (Not Present) 
+  * Digital Output (AMD High Definition Audio Device) (Not Present) 
+  * Digital Audio (HDMI) (High Definition Audio Device) (Not Present) 
+  * Digital Output (AMD High Definition Audio Device) (Not Present) 
+
+--- INPUT DEVICES (Capture) ---
+  * RODE NTG (RØDE VideoMic NTG) (Connected) 
+  * Internal AUX Jack (High Definition Audio Device) (Not Present) 
+  * Stereo Mix (Realtek USB Audio) (Disabled) 
+  * Internal AUX Jack (NVIDIA High Definition Audio) (Not Present) 
+  * Audio Input (Not Present) 
+  * Audio Input (Not Present) 
+  * Microphone (Steam Streaming Microphone) (Connected) 
+  * Microphone (Steam Streaming Speakers) (Not Present) 
+  * Internal AUX Jack (NVIDIA High Definition Audio) (Not Present) 
+  * Audio Input (Not Present) 
+  * Internal AUX Jack (NVIDIA High Definition Audio) (Not Present) 
+  * Headset (FIIO EH11 Hands-Free) (Unplugged) 
+  * Audio Input (Not Present) 
+  * CABLE Output (VB-Audio Virtual Cable) (Connected) 
+  * RODE XCM-50 (RØDE XCM-50) (Connected) [DEFAULT SOUND] [DEFAULT COMMS] 
+  * Microphone (Sonic Studio Virtual Mixer) (Disabled) 
+  * Line In (Realtek USB Audio) (Disabled) 
+  * Microphone (Realtek USB Audio) (Connected) 
+  * Microphone (Qudelix-5K USB DAC/MIC 48KHz) (Connected) 
+  * Headset (Qudelix-5K) (Disabled) 
+  * Internal AUX Jack (Steam Streaming Speakers) (Disabled) 
+  * Internal AUX Jack (High Definition Audio Device) (Not Present) 
+  * Audio Input (Not Present) 
+==========================================
+

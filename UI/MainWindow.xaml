@@ -14,167 +14,7 @@
         Closing="Window_Closing"
         StateChanged="Window_StateChanged">
 
-    <Window.Resources>
-        <!-- Primary Button Style -->
-        <Style x:Key="PrimaryBtnStyle" TargetType="Button">
-            <Setter Property="Background" Value="#2563EB" />
-            <Setter Property="Foreground" Value="#FFFFFF" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#3B82F6" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#1D4ED8" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="bdr" Property="Background" Value="#3F3F46" />
-                                <Setter Property="Foreground" Value="#71717A" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
 
-        <!-- Secondary/Small Button Style -->
-        <Style x:Key="SmallBtnStyle" TargetType="Button">
-            <Setter Property="Background" Value="#272730" />
-            <Setter Property="Foreground" Value="#E4E4E7" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Padding" Value="10,5" />
-            <Setter Property="BorderBrush" Value="#3F3F4E" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#383845" />
-                                <Setter TargetName="bdr" Property="BorderBrush" Value="#60A5FA" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#1E1E24" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Icon Action Button Style -->
-        <Style x:Key="IconBtnStyle" TargetType="Button">
-            <Setter Property="Background" Value="#2A2A35" />
-            <Setter Property="Foreground" Value="#D4D4D8" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Width" Value="28" />
-            <Setter Property="Height" Value="28" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="5">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#3F3F50" />
-                                <Setter Property="Foreground" Value="#FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#181820" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Danger Icon Button Style -->
-        <Style x:Key="DangerIconBtnStyle" TargetType="Button">
-            <Setter Property="Background" Value="#2A2A35" />
-            <Setter Property="Foreground" Value="#9CA3AF" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Width" Value="28" />
-            <Setter Property="Height" Value="28" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="5">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#7F1D1D" />
-                                <Setter Property="Foreground" Value="#F87171" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#991B1B" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Dark ComboBox Style -->
-        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="#1E1E24" />
-            <Setter Property="Foreground" Value="#F4F4F5" />
-            <Setter Property="BorderBrush" Value="#3F3F4A" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontSize" Value="12" />
-        </Style>
-
-        <!-- Modern TabControl Style -->
-        <Style x:Key="ModernTabItemStyle" TargetType="TabItem">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="TabBorder" Background="Transparent" Padding="14,10" Margin="0,0,4,0" CornerRadius="6">
-                            <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Center"
-                                              ContentSource="Header" RecognizesAccessKey="True" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#272730" />
-                                <Setter Property="Foreground" Value="#60A5FA" />
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="False">
-                                <Setter Property="Foreground" Value="#9CA3AF" />
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsMouseOver" Value="True" />
-                                    <Condition Property="IsSelected" Value="False" />
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="TabBorder" Property="Background" Value="#1E1E24" />
-                                <Setter Property="Foreground" Value="#E4E4E7" />
-                            </MultiTrigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -265,6 +105,17 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Sound & Communications Synchronization Card -->
+                        <Border Background="#1E1E24" CornerRadius="10" Padding="18,14" Margin="0,0,0,14" BorderBrush="#2E2E38" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Sound &amp; Communications Synchronization" FontSize="14" FontWeight="SemiBold" Foreground="#60A5FA" Margin="0,0,0,8" />
+                                <TextBlock Text="Choose whether voice communications (Discord, Teams, Zoom) should automatically match and use the same device as system sounds." FontSize="12" Foreground="#9CA3AF" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+                                <CheckBox x:Name="ChkOptMatchOutputComms" Content="Output (Playback): Match Communications to Sound (Always use same output device)" Foreground="#E4E4E7" FontSize="13" Margin="0,6" Checked="SettingsOption_Changed" Unchecked="SettingsOption_Changed" Cursor="Hand" />
+                                <CheckBox x:Name="ChkOptMatchInputComms" Content="Input (Microphone): Match Communications to Sound (Always use same microphone)" Foreground="#E4E4E7" FontSize="13" Margin="0,6" Checked="SettingsOption_Changed" Unchecked="SettingsOption_Changed" Cursor="Hand" />
+                            </StackPanel>
+                        </Border>
+
                         <!-- System Integration Card -->
                         <Border Background="#1E1E24" CornerRadius="10" Padding="18,14" Margin="0,0,0,14" BorderBrush="#2E2E38" BorderThickness="1">
                             <StackPanel>
@@ -273,6 +124,57 @@
                                 <CheckBox x:Name="ChkOptStartWithWindows" Content="Start AudioSwitcher automatically with Windows" Foreground="#E4E4E7" FontSize="13" Margin="0,6" Checked="SettingsOption_Changed" Unchecked="SettingsOption_Changed" Cursor="Hand" />
                                 <CheckBox x:Name="ChkOptStartMinimized" Content="Start minimized to System Tray" Foreground="#E4E4E7" FontSize="13" Margin="0,6" Checked="SettingsOption_Changed" Unchecked="SettingsOption_Changed" Cursor="Hand" />
                                 <CheckBox x:Name="ChkOptCloseToTray" Content="Minimize to System Tray when closing the window (✕)" Foreground="#E4E4E7" FontSize="13" Margin="0,6" Checked="SettingsOption_Changed" Unchecked="SettingsOption_Changed" Cursor="Hand" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Hidden & Ignored Devices Card -->
+                        <Border Background="#1E1E24" CornerRadius="10" Padding="18,14" Margin="0,0,0,14" BorderBrush="#2E2E38" BorderThickness="1">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="🚫 Hidden &amp; Ignored Devices (Device Filter)" FontSize="14" FontWeight="SemiBold" Foreground="#60A5FA" VerticalAlignment="Center" />
+                                    <Button x:Name="BtnUnhideAll" Grid.Column="1" Content="Unhide All" Style="{DynamicResource SmallBtnStyle}" Padding="10,4" Click="BtnUnhideAll_Click" ToolTip="Restore all hidden devices" />
+                                </Grid>
+                                
+                                <TextBlock Text="Devices listed here are excluded from automatic switching, dropdown lists, and system tray menus." FontSize="12" Foreground="#9CA3AF" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+                                <!-- Quick Hide from Settings -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="CmbDevicesToHide" Grid.Column="0" Height="34" Margin="0,0,8,0" Style="{DynamicResource DarkComboBoxStyle}" />
+                                    <Button x:Name="BtnHideDeviceInSettings" Grid.Column="1" Content="🚫 Hide Device" Style="{DynamicResource SmallBtnStyle}" Height="34" Padding="12,0" Click="BtnHideDeviceInSettings_Click" />
+                                </Grid>
+
+                                <!-- Hidden Devices ItemsControl / List -->
+                                <Border Background="#18181F" CornerRadius="8" BorderBrush="#2B2B36" BorderThickness="1" Padding="10" MinHeight="50">
+                                    <Grid>
+                                        <TextBlock x:Name="TxtNoHiddenDevices" Text="No devices are currently hidden. You can hide devices using the 🚫 button in any priority tab." FontSize="12" Foreground="#52525B" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10" />
+                                        <ItemsControl x:Name="ItemsHiddenDevices">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#24242D" CornerRadius="6" Padding="10,8" Margin="0,0,0,6" BorderBrush="#353542" BorderThickness="1">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Name}" Foreground="#F4F4F5" FontSize="13" FontWeight="Medium" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+                                                            </StackPanel>
+                                                            <Button Grid.Column="1" Content="✓ Unhide / Restore" Style="{DynamicResource SmallBtnStyle}" Padding="10,4" Click="BtnUnhideDevice_Click" Tag="{Binding}" ToolTip="Restore this device to available lists" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Border>
 
