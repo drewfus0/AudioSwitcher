@@ -23,3 +23,5 @@ C:\Users\drewf\vscode\AudioSwitcher\obj\Release\net9.0-windows\AudioSwitcher.pdb
 C:\Users\drewf\vscode\AudioSwitcher\obj\Release\net9.0-windows\AudioSwitcher.genruntimeconfig.cache
 C:\Users\drewf\vscode\AudioSwitcher\obj\Release\net9.0-windows\ref\AudioSwitcher.dll
 C:\Users\drewf\vscode\AudioSwitcher\obj\Release\net9.0-windows\AudioSwitcher.sourcelink.json
+C:\Users\drewf\vscode\AudioSwitcher\bin\Release\net9.0-windows\Assets\app.ico
+C:\Users\drewf\vscode\AudioSwitcher\bin\Release\net9.0-windows\Assets\app.png
