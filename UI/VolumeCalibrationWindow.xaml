@@ -37,7 +37,7 @@
                     </StackPanel>
                     <TextBlock Text="Calibrate volume curves between different headphones, DACs, and speakers so audio stays balanced when switching." FontSize="12" Foreground="#9CA3AF" Margin="0,4,0,0" />
                 </StackPanel>
-                <CheckBox x:Name="ChkEnableVolumeMapping" Grid.Column="1" Content="Enable Volume Auto-Mapping on Switch" IsChecked="True" Foreground="#93C5FD" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Cursor="Hand" Checked="ChkEnableVolumeMapping_Changed" Unchecked="ChkEnableVolumeMapping_Changed" />
+                <CheckBox x:Name="ChkEnableVolumeMapping" Grid.Column="1" Content="Enable Volume Auto-Mapping on Switch" Foreground="#93C5FD" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Cursor="Hand" Checked="ChkEnableVolumeMapping_Changed" Unchecked="ChkEnableVolumeMapping_Changed" />
             </Grid>
         </Border>
 
@@ -83,9 +83,9 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <RadioButton x:Name="RbLevelLow" Grid.Column="0" Content="Low (25%)" GroupName="CalLevel" Margin="0,0,4,0" IsChecked="False" Checked="RbLevel_Checked" Foreground="#E4E4E7" FontSize="12" Cursor="Hand" />
-                            <RadioButton x:Name="RbLevelMid" Grid.Column="1" Content="Mid (50%)" GroupName="CalLevel" Margin="0,0,4,0" IsChecked="True" Checked="RbLevel_Checked" Foreground="#E4E4E7" FontSize="12" Cursor="Hand" />
-                            <RadioButton x:Name="RbLevelHigh" Grid.Column="2" Content="High (75%)" GroupName="CalLevel" IsChecked="False" Checked="RbLevel_Checked" Foreground="#E4E4E7" FontSize="12" Cursor="Hand" />
+                            <RadioButton x:Name="RbLevelLow" Grid.Column="0" Content="Low (25%)" GroupName="CalLevel" Margin="0,0,4,0" Checked="RbLevel_Checked" Foreground="#E4E4E7" FontSize="12" Cursor="Hand" />
+                            <RadioButton x:Name="RbLevelMid" Grid.Column="1" Content="Mid (50%)" GroupName="CalLevel" Margin="0,0,4,0" Checked="RbLevel_Checked" Foreground="#E4E4E7" FontSize="12" Cursor="Hand" />
+                            <RadioButton x:Name="RbLevelHigh" Grid.Column="2" Content="High (75%)" GroupName="CalLevel" Checked="RbLevel_Checked" Foreground="#E4E4E7" FontSize="12" Cursor="Hand" />
                         </Grid>
 
                         <!-- Test Signal Picker -->
@@ -97,7 +97,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Test Sound:" FontSize="12" FontWeight="SemiBold" Foreground="#D4D4D8" VerticalAlignment="Center" Margin="0,0,10,0" />
                                 <ComboBox x:Name="CmbSignalType" Grid.Column="1" Height="28" Style="{DynamicResource DarkComboBoxStyle}" SelectionChanged="CmbSignalType_SelectionChanged">
-                                    <ComboBoxItem Content="Pink Noise (Recommended for Loudness)" IsSelected="True" Tag="0" />
+                                    <ComboBoxItem Content="Pink Noise (Recommended for Loudness)" Tag="0" />
                                     <ComboBoxItem Content="Warm Harmonic Chord" Tag="1" />
                                     <ComboBoxItem Content="Pulsed Melody Chime" Tag="2" />
                                 </ComboBox>

@@ -19,7 +19,7 @@ namespace AudioSwitcher.CoreAudio
 
         private readonly IMMDeviceEnumerator _enumerator;
         private static readonly Guid IID_IAudioClient = new("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2");
-        private static readonly Guid IID_IAudioRenderClient = new("F2942F23-8861-4721-8A6D-05505F4E6189");
+        private static readonly Guid IID_IAudioRenderClient = new("F294ACFC-3146-4483-A7BF-ADDCA7C260E2");
 
         private CancellationTokenSource? _playbackCts;
         private readonly object _lock = new();
@@ -163,9 +163,10 @@ namespace AudioSwitcher.CoreAudio
                 if (hr != 0 || bufferFrameCount == 0) return;
 
                 var iidRender = IID_IAudioRenderClient;
-                hr = audioClient.GetService(ref iidRender, out object ppRender);
-                if (hr != 0 || ppRender is not IAudioRenderClient rc) return;
-                renderClient = rc;
+                hr = audioClient.GetService(ref iidRender, out IntPtr pRender);
+                if (hr != 0 || pRender == IntPtr.Zero) return;
+                renderClient = (IAudioRenderClient)Marshal.GetObjectForIUnknown(pRender);
+                Marshal.Release(pRender);
 
                 audioClient.Start();
 
@@ -200,6 +201,26 @@ namespace AudioSwitcher.CoreAudio
                                     }
                                 }
                                 Marshal.Copy(samples, 0, pData, totalSamples);
+                            }
+                            else if (bitsPerSample == 24)
+                            {
+                                byte[] samples = new byte[totalSamples * 3];
+                                for (int i = 0; i < (int)numFramesAvailable; i++)
+                                {
+                                    float s = GenerateSample(signalType, sampleRate, ref phase, ref pulsePhase, rand, ref b0, ref b1, ref b2, ref b3, ref b4, ref b5, ref b6);
+                                    int val = (int)Math.Clamp((int)(s * 8388607.0f), -8388608, 8388607);
+                                    byte b0_v = (byte)(val & 0xFF);
+                                    byte b1_v = (byte)((val >> 8) & 0xFF);
+                                    byte b2_v = (byte)((val >> 16) & 0xFF);
+                                    for (int ch = 0; ch < channels; ch++)
+                                    {
+                                        int off = (i * channels + ch) * 3;
+                                        samples[off] = b0_v;
+                                        samples[off + 1] = b1_v;
+                                        samples[off + 2] = b2_v;
+                                    }
+                                }
+                                Marshal.Copy(samples, 0, pData, samples.Length);
                             }
                             else if (bitsPerSample == 16)
                             {
@@ -259,7 +280,7 @@ namespace AudioSwitcher.CoreAudio
                     b5 = -0.7616 * b5 - white * 0.0168980;
                     double pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
                     b6 = white * 0.115926;
-                    return (float)(pink * 0.11); // Normalized comfortable gain
+                    return (float)(pink * 0.18); // Clear, pleasant reference loudness
 
                 case TestSignalType.HarmonicChord:
                     // Warm pleasant chord (C major: 261.63Hz + 329.63Hz + 392.00Hz + 523.25Hz)
@@ -269,7 +290,7 @@ namespace AudioSwitcher.CoreAudio
                     double s2 = Math.Sin(2.0 * Math.PI * 329.63 * phase);
                     double s3 = Math.Sin(2.0 * Math.PI * 392.00 * phase);
                     double s4 = Math.Sin(2.0 * Math.PI * 523.25 * phase);
-                    return (float)((s1 * 0.35 + s2 * 0.3 + s3 * 0.25 + s4 * 0.2) * 0.32);
+                    return (float)((s1 * 0.35 + s2 * 0.3 + s3 * 0.25 + s4 * 0.2) * 0.50);
 
                 case TestSignalType.PulsedChime:
                     // Rhythmic pulse chime
@@ -278,7 +299,7 @@ namespace AudioSwitcher.CoreAudio
                     if (pulsePhase >= 0.5) pulsePhase -= 0.5; // 2 pulses per second
                     double env = Math.Exp(-pulsePhase * 9.0); // Fast attack, gentle decay
                     double tone = Math.Sin(2.0 * Math.PI * 440.0 * phase) * 0.6 + Math.Sin(2.0 * Math.PI * 880.0 * phase) * 0.4;
-                    return (float)(tone * env * 0.4);
+                    return (float)(tone * env * 0.60);
 
                 default:
                     return 0.0f;

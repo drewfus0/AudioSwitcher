@@ -25,10 +25,11 @@ namespace AudioSwitcher.UI
         private readonly WasapiTestTonePlayer _player = WasapiTestTonePlayer.Instance;
         private DeviceVolumeProfile _currentProfile = new();
         private double _activeRefLevel = 0.50; // 0.25, 0.50, or 0.75
-        private bool _isUpdatingUi = false;
+        private bool _isUpdatingUi = true;
 
         public VolumeCalibrationWindow()
         {
+            _isUpdatingUi = true;
             InitializeComponent();
 
             _player.ActivePlaybackChanged += OnActivePlaybackChanged;
@@ -53,18 +54,53 @@ namespace AudioSwitcher.UI
 
         private void VolumeCalibrationWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            ChkEnableVolumeMapping.IsChecked = SettingsService.Instance.Settings.EnableVolumeMappingOnSwitch;
-            PopulateDeviceCombos();
+            _isUpdatingUi = true;
+            try
+            {
+                if (ChkEnableVolumeMapping != null)
+                {
+                    ChkEnableVolumeMapping.IsChecked = SettingsService.Instance.Settings.EnableVolumeMappingOnSwitch;
+                }
+
+                if (RbLevelMid != null)
+                {
+                    RbLevelMid.IsChecked = true;
+                }
+
+                if (CmbSignalType != null && CmbSignalType.SelectedIndex < 0)
+                {
+                    CmbSignalType.SelectedIndex = 0;
+                }
+
+                PopulateDeviceCombos();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"VolumeCalibrationWindow_Loaded error: {ex.Message}");
+            }
+            finally
+            {
+                _isUpdatingUi = false;
+            }
+
+            LoadProfileForSelectedTarget();
         }
 
         private void VolumeCalibrationWindow_Closed(object? sender, EventArgs e)
         {
-            _player.Stop();
-            _player.ActivePlaybackChanged -= OnActivePlaybackChanged;
+            try
+            {
+                _player.Stop();
+                _player.ActivePlaybackChanged -= OnActivePlaybackChanged;
+            }
+            catch { }
         }
 
         private void PopulateDeviceCombos()
         {
+            if (CmbReferenceDevice == null || CmbTargetDevice == null) return;
+
+            bool wasUpdating = _isUpdatingUi;
             _isUpdatingUi = true;
             try
             {
@@ -92,80 +128,111 @@ namespace AudioSwitcher.UI
                     CmbTargetDevice.SelectedIndex = targetIndex;
                 }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PopulateDeviceCombos error: {ex.Message}");
+            }
             finally
             {
-                _isUpdatingUi = false;
+                _isUpdatingUi = wasUpdating;
             }
-
-            LoadProfileForSelectedTarget();
         }
 
         private void LoadProfileForSelectedTarget()
         {
-            var targetDev = GetSelectedTargetDevice();
-            if (targetDev != null)
+            try
             {
-                _currentProfile = SettingsService.Instance.GetOrCreateVolumeProfile(targetDev.Id, targetDev.Name);
-            }
-            else
-            {
-                _currentProfile = new DeviceVolumeProfile("default", "Default");
-            }
+                var targetDev = GetSelectedTargetDevice();
+                if (targetDev != null)
+                {
+                    _currentProfile = SettingsService.Instance.GetOrCreateVolumeProfile(targetDev.Id, targetDev.Name);
+                }
+                else
+                {
+                    _currentProfile = new DeviceVolumeProfile("default", "Default");
+                }
 
-            UpdateUiForActiveLevel();
-            RedrawCurveGraph();
+                UpdateUiForActiveLevel();
+                RedrawCurveGraph();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadProfileForSelectedTarget error: {ex.Message}");
+            }
         }
 
         private AudioDevice? GetSelectedReferenceDevice()
         {
+            if (CmbReferenceDevice == null) return null;
             return (CmbReferenceDevice.SelectedItem as ComboBoxItem)?.Tag as AudioDevice;
         }
 
         private AudioDevice? GetSelectedTargetDevice()
         {
+            if (CmbTargetDevice == null) return null;
             return (CmbTargetDevice.SelectedItem as ComboBoxItem)?.Tag as AudioDevice;
         }
 
         private TestSignalType GetSelectedSignalType()
         {
+            if (CmbSignalType == null) return TestSignalType.PinkNoise;
             int tag = int.TryParse((CmbSignalType.SelectedItem as ComboBoxItem)?.Tag?.ToString(), out int val) ? val : 0;
             return (TestSignalType)tag;
         }
 
         private void UpdateUiForActiveLevel()
         {
-            double targetVol = VolumeMappingService.ForwardMap(_currentProfile, _activeRefLevel);
-            int percent = (int)Math.Round(targetVol * 100.0);
+            if (SliderTargetVolume == null || TxtTargetVolumePercent == null) return;
 
-            _isUpdatingUi = true;
             try
             {
-                SliderTargetVolume.Value = percent;
-                TxtTargetVolumePercent.Text = $"{percent}%";
-            }
-            finally
-            {
-                _isUpdatingUi = false;
-            }
+                double targetVol = VolumeMappingService.ForwardMap(_currentProfile, _activeRefLevel);
+                int percent = (int)Math.Round(targetVol * 100.0);
 
-            UpdatePointsSummaryText();
+                bool wasUpdating = _isUpdatingUi;
+                _isUpdatingUi = true;
+                try
+                {
+                    SliderTargetVolume.Value = percent;
+                    TxtTargetVolumePercent.Text = $"{percent}%";
+                }
+                finally
+                {
+                    _isUpdatingUi = wasUpdating;
+                }
+
+                UpdatePointsSummaryText();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateUiForActiveLevel error: {ex.Message}");
+            }
         }
 
         private void UpdatePointsSummaryText()
         {
-            double pLow = VolumeMappingService.ForwardMap(_currentProfile, 0.25) * 100.0;
-            double pMid = VolumeMappingService.ForwardMap(_currentProfile, 0.50) * 100.0;
-            double pHigh = VolumeMappingService.ForwardMap(_currentProfile, 0.75) * 100.0;
+            if (TxtPointLow == null || TxtPointMid == null || TxtPointHigh == null) return;
+            if (_currentProfile == null) return;
 
-            TxtPointLow.Text = $"• Low (25% Ref) ➔ Target: {Math.Round(pLow)}%";
-            TxtPointMid.Text = $"• Mid (50% Ref) ➔ Target: {Math.Round(pMid)}%";
-            TxtPointHigh.Text = $"• High (75% Ref) ➔ Target: {Math.Round(pHigh)}%";
+            try
+            {
+                double pLow = VolumeMappingService.ForwardMap(_currentProfile, 0.25) * 100.0;
+                double pMid = VolumeMappingService.ForwardMap(_currentProfile, 0.50) * 100.0;
+                double pHigh = VolumeMappingService.ForwardMap(_currentProfile, 0.75) * 100.0;
+
+                TxtPointLow.Text = $"• Low (25% Ref) ➔ Target: {Math.Round(pLow)}%";
+                TxtPointMid.Text = $"• Mid (50% Ref) ➔ Target: {Math.Round(pMid)}%";
+                TxtPointHigh.Text = $"• High (75% Ref) ➔ Target: {Math.Round(pHigh)}%";
+            }
+            catch { }
         }
 
         private void OnActivePlaybackChanged(string? activeDeviceId)
         {
             Dispatcher.Invoke(() =>
             {
+                if (BdrActivePlayingBadge == null || TxtActivePlayingBadge == null) return;
+
                 if (string.IsNullOrEmpty(activeDeviceId))
                 {
                     BdrActivePlayingBadge.Background = new SolidColorBrush(MediaColor.FromRgb(30, 41, 59));
@@ -187,9 +254,10 @@ namespace AudioSwitcher.UI
                 }
                 else if (targetDev != null && string.Equals(activeDeviceId, targetDev.Id, StringComparison.OrdinalIgnoreCase))
                 {
+                    int targetVal = SliderTargetVolume != null ? (int)SliderTargetVolume.Value : 50;
                     BdrActivePlayingBadge.Background = new SolidColorBrush(MediaColor.FromRgb(45, 28, 12));
                     BdrActivePlayingBadge.BorderBrush = new SolidColorBrush(MediaColor.FromRgb(245, 158, 11));
-                    TxtActivePlayingBadge.Text = $"🎧 PLAYING TARGET ({targetDev.Name}) at {(int)SliderTargetVolume.Value}%";
+                    TxtActivePlayingBadge.Text = $"🎧 PLAYING TARGET ({targetDev.Name}) at {targetVal}%";
                     TxtActivePlayingBadge.Foreground = new SolidColorBrush(MediaColor.FromRgb(253, 230, 138));
                 }
                 else
@@ -207,172 +275,290 @@ namespace AudioSwitcher.UI
         private void CmbReferenceDevice_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isUpdatingUi) return;
-            if (_player.IsPlaying) _player.Stop();
+            try
+            {
+                if (_player.IsPlaying) _player.Stop();
+            }
+            catch { }
         }
 
         private void CmbTargetDevice_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isUpdatingUi) return;
-            if (_player.IsPlaying) _player.Stop();
-            LoadProfileForSelectedTarget();
+            try
+            {
+                if (_player.IsPlaying) _player.Stop();
+                LoadProfileForSelectedTarget();
+            }
+            catch { }
         }
 
         private void CmbSignalType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_isUpdatingUi) return;
-            if (_player.IsPlaying)
+            try
             {
-                // Restart with new signal type
-                BtnAutoABToggle_Click(sender, e);
+                if (_player.IsPlaying)
+                {
+                    // Restart with new signal type
+                    BtnAutoABToggle_Click(sender, e);
+                }
             }
+            catch { }
         }
 
         private void RbLevel_Checked(object sender, RoutedEventArgs e)
         {
             if (_isUpdatingUi) return;
+            if (RbLevelLow == null || RbLevelMid == null || RbLevelHigh == null) return;
 
-            if (RbLevelLow.IsChecked == true) _activeRefLevel = 0.25;
-            else if (RbLevelMid.IsChecked == true) _activeRefLevel = 0.50;
-            else if (RbLevelHigh.IsChecked == true) _activeRefLevel = 0.75;
-
-            // Apply reference volume to reference device
-            var refDev = GetSelectedReferenceDevice();
-            if (refDev != null)
+            try
             {
-                AudioVolumeManager.Instance.SetVolume(refDev.Id, (float)_activeRefLevel);
-            }
+                if (RbLevelLow.IsChecked == true) _activeRefLevel = 0.25;
+                else if (RbLevelMid.IsChecked == true) _activeRefLevel = 0.50;
+                else if (RbLevelHigh.IsChecked == true) _activeRefLevel = 0.75;
 
-            UpdateUiForActiveLevel();
+                // Apply reference volume to reference device
+                var refDev = GetSelectedReferenceDevice();
+                if (refDev != null)
+                {
+                    AudioVolumeManager.Instance.SetVolume(refDev.Id, (float)_activeRefLevel);
+                }
+
+                UpdateUiForActiveLevel();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RbLevel_Checked error: {ex.Message}");
+            }
         }
 
         private void SliderTargetVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            TxtTargetVolumePercent.Text = $"{(int)SliderTargetVolume.Value}%";
+            if (TxtTargetVolumePercent != null && SliderTargetVolume != null)
+            {
+                TxtTargetVolumePercent.Text = $"{(int)SliderTargetVolume.Value}%";
+            }
+
             if (_isUpdatingUi) return;
 
-            var targetDev = GetSelectedTargetDevice();
-            if (targetDev != null)
+            try
             {
-                float scalar = (float)(SliderTargetVolume.Value / 100.0);
-                AudioVolumeManager.Instance.SetVolume(targetDev.Id, scalar);
+                var targetDev = GetSelectedTargetDevice();
+                if (targetDev != null && SliderTargetVolume != null)
+                {
+                    float scalar = (float)(SliderTargetVolume.Value / 100.0);
+                    AudioVolumeManager.Instance.SetVolume(targetDev.Id, scalar);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SliderTargetVolume_ValueChanged error: {ex.Message}");
             }
         }
 
         private void BtnStorePoint_Click(object sender, RoutedEventArgs e)
         {
-            double targetScalar = Math.Clamp(SliderTargetVolume.Value / 100.0, 0.0, 1.0);
+            if (SliderTargetVolume == null || _currentProfile == null) return;
 
-            // Update or add point in _currentProfile
-            var existing = _currentProfile.Points.FirstOrDefault(p => Math.Abs(p.RefVolume - _activeRefLevel) < 0.02);
-            if (existing != null)
+            try
             {
-                existing.TargetVolume = targetScalar;
-            }
-            else
-            {
-                _currentProfile.Points.Add(new VolumeCalibrationPoint(_activeRefLevel, targetScalar));
-            }
+                double targetScalar = Math.Clamp(SliderTargetVolume.Value / 100.0, 0.0, 1.0);
 
-            _currentProfile.Points = _currentProfile.Points.OrderBy(p => p.RefVolume).ToList();
-            UpdatePointsSummaryText();
-            RedrawCurveGraph();
-            TxtStatusMessage.Text = $"Stored calibration point: Reference {(int)(_activeRefLevel * 100)}% ➔ Target {(int)(targetScalar * 100)}%";
+                if (_currentProfile.Points == null) _currentProfile.Points = new List<VolumeCalibrationPoint>();
+
+                var existing = _currentProfile.Points.FirstOrDefault(p => Math.Abs(p.RefVolume - _activeRefLevel) < 0.02);
+                if (existing != null)
+                {
+                    existing.TargetVolume = targetScalar;
+                }
+                else
+                {
+                    _currentProfile.Points.Add(new VolumeCalibrationPoint(_activeRefLevel, targetScalar));
+                }
+
+                _currentProfile.Points = _currentProfile.Points.OrderBy(p => p.RefVolume).ToList();
+                UpdatePointsSummaryText();
+                RedrawCurveGraph();
+
+                if (TxtStatusMessage != null)
+                {
+                    TxtStatusMessage.Text = $"Stored calibration point: Reference {(int)(_activeRefLevel * 100)}% ➔ Target {(int)(targetScalar * 100)}%";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"BtnStorePoint_Click error: {ex.Message}");
+            }
         }
 
         private void BtnPlayReference_Click(object sender, RoutedEventArgs e)
         {
-            var refDev = GetSelectedReferenceDevice();
-            if (refDev == null) return;
+            try
+            {
+                var refDev = GetSelectedReferenceDevice();
+                if (refDev == null)
+                {
+                    if (TxtStatusMessage != null) TxtStatusMessage.Text = "Please select a Reference device.";
+                    return;
+                }
 
-            AudioVolumeManager.Instance.SetVolume(refDev.Id, (float)_activeRefLevel);
-            _player.StartSingle(refDev.Id, GetSelectedSignalType());
+                AudioVolumeManager.Instance.SetVolume(refDev.Id, (float)_activeRefLevel);
+                _player.StartSingle(refDev.Id, GetSelectedSignalType());
+            }
+            catch (Exception ex)
+            {
+                if (TxtStatusMessage != null) TxtStatusMessage.Text = $"Play Reference error: {ex.Message}";
+            }
         }
 
         private void BtnPlayTarget_Click(object sender, RoutedEventArgs e)
         {
-            var targetDev = GetSelectedTargetDevice();
-            if (targetDev == null) return;
+            try
+            {
+                var targetDev = GetSelectedTargetDevice();
+                if (targetDev == null)
+                {
+                    if (TxtStatusMessage != null) TxtStatusMessage.Text = "Please select a Target device.";
+                    return;
+                }
 
-            float scalar = (float)(SliderTargetVolume.Value / 100.0);
-            AudioVolumeManager.Instance.SetVolume(targetDev.Id, scalar);
-            _player.StartSingle(targetDev.Id, GetSelectedSignalType());
+                float scalar = SliderTargetVolume != null ? (float)(SliderTargetVolume.Value / 100.0) : 0.5f;
+                AudioVolumeManager.Instance.SetVolume(targetDev.Id, scalar);
+                _player.StartSingle(targetDev.Id, GetSelectedSignalType());
+            }
+            catch (Exception ex)
+            {
+                if (TxtStatusMessage != null) TxtStatusMessage.Text = $"Play Target error: {ex.Message}";
+            }
         }
 
         private void BtnAutoABToggle_Click(object sender, RoutedEventArgs e)
         {
-            var refDev = GetSelectedReferenceDevice();
-            var targetDev = GetSelectedTargetDevice();
-            if (refDev == null || targetDev == null) return;
+            try
+            {
+                var refDev = GetSelectedReferenceDevice();
+                var targetDev = GetSelectedTargetDevice();
+                if (refDev == null || targetDev == null)
+                {
+                    if (TxtStatusMessage != null) TxtStatusMessage.Text = "Please select both Reference and Target devices.";
+                    return;
+                }
 
-            AudioVolumeManager.Instance.SetVolume(refDev.Id, (float)_activeRefLevel);
-            AudioVolumeManager.Instance.SetVolume(targetDev.Id, (float)(SliderTargetVolume.Value / 100.0));
+                float targetScalar = SliderTargetVolume != null ? (float)(SliderTargetVolume.Value / 100.0) : 0.5f;
+                AudioVolumeManager.Instance.SetVolume(refDev.Id, (float)_activeRefLevel);
+                AudioVolumeManager.Instance.SetVolume(targetDev.Id, targetScalar);
 
-            _player.StartAlternate(refDev.Id, targetDev.Id, GetSelectedSignalType(), 2000);
+                _player.StartAlternate(refDev.Id, targetDev.Id, GetSelectedSignalType(), 2000);
+            }
+            catch (Exception ex)
+            {
+                if (TxtStatusMessage != null) TxtStatusMessage.Text = $"Auto A-B Switch error: {ex.Message}";
+            }
         }
 
         private void BtnStopAudio_Click(object sender, RoutedEventArgs e)
         {
-            _player.Stop();
+            try
+            {
+                _player.Stop();
+            }
+            catch { }
         }
 
         private void BtnQuickProportional_Click(object sender, RoutedEventArgs e)
         {
-            // Calculate scale factor from 50% point
-            double midTarget = VolumeMappingService.ForwardMap(_currentProfile, 0.50);
-            double ratio = midTarget / 0.50;
+            if (_currentProfile == null) return;
 
-            _currentProfile.Points = new List<VolumeCalibrationPoint>
+            try
             {
-                new(0.0, 0.0),
-                new(0.25, Math.Clamp(0.25 * ratio, 0.05, 0.95)),
-                new(0.50, midTarget),
-                new(0.75, Math.Clamp(0.75 * ratio, 0.10, 1.0)),
-                new(1.0, 1.0)
-            };
+                // Calculate scale factor from 50% point
+                double midTarget = VolumeMappingService.ForwardMap(_currentProfile, 0.50);
+                double ratio = midTarget / 0.50;
 
-            UpdateUiForActiveLevel();
-            RedrawCurveGraph();
-            TxtStatusMessage.Text = "Generated proportional curve from 50% Mid Point.";
+                _currentProfile.Points = new List<VolumeCalibrationPoint>
+                {
+                    new(0.0, 0.0),
+                    new(0.25, Math.Clamp(0.25 * ratio, 0.05, 0.95)),
+                    new(0.50, midTarget),
+                    new(0.75, Math.Clamp(0.75 * ratio, 0.10, 1.0)),
+                    new(1.0, 1.0)
+                };
+
+                UpdateUiForActiveLevel();
+                RedrawCurveGraph();
+                if (TxtStatusMessage != null) TxtStatusMessage.Text = "Generated proportional curve from 50% Mid Point.";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"BtnQuickProportional_Click error: {ex.Message}");
+            }
         }
 
         private void BtnResetLinear_Click(object sender, RoutedEventArgs e)
         {
-            _currentProfile.Points = new List<VolumeCalibrationPoint>
-            {
-                new(0.0, 0.0),
-                new(0.25, 0.25),
-                new(0.50, 0.50),
-                new(0.75, 0.75),
-                new(1.0, 1.0)
-            };
+            if (_currentProfile == null) return;
 
-            UpdateUiForActiveLevel();
-            RedrawCurveGraph();
-            TxtStatusMessage.Text = "Reset curve to standard 1:1 linear mapping.";
+            try
+            {
+                _currentProfile.Points = new List<VolumeCalibrationPoint>
+                {
+                    new(0.0, 0.0),
+                    new(0.25, 0.25),
+                    new(0.50, 0.50),
+                    new(0.75, 0.75),
+                    new(1.0, 1.0)
+                };
+
+                UpdateUiForActiveLevel();
+                RedrawCurveGraph();
+                if (TxtStatusMessage != null) TxtStatusMessage.Text = "Reset curve to standard 1:1 linear mapping.";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"BtnResetLinear_Click error: {ex.Message}");
+            }
         }
 
         private void BtnSaveProfile_Click(object sender, RoutedEventArgs e)
         {
-            var targetDev = GetSelectedTargetDevice();
-            if (targetDev != null)
+            try
             {
-                _currentProfile.DeviceId = targetDev.Id;
-                _currentProfile.DeviceName = targetDev.Name;
-                SettingsService.Instance.SaveVolumeProfile(_currentProfile);
-                TxtStatusMessage.Text = $"Saved calibration profile for '{targetDev.Name}'.";
+                var targetDev = GetSelectedTargetDevice();
+                if (targetDev != null && _currentProfile != null)
+                {
+                    _currentProfile.DeviceId = targetDev.Id;
+                    _currentProfile.DeviceName = targetDev.Name;
+                    SettingsService.Instance.SaveVolumeProfile(_currentProfile);
+                    if (TxtStatusMessage != null) TxtStatusMessage.Text = $"Saved calibration profile for '{targetDev.Name}'.";
+                }
+            }
+            catch (Exception ex)
+            {
+                if (TxtStatusMessage != null) TxtStatusMessage.Text = $"Failed to save profile: {ex.Message}";
             }
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            _player.Stop();
-            Close();
+            try
+            {
+                _player.Stop();
+                Close();
+            }
+            catch { }
         }
 
         private void ChkEnableVolumeMapping_Changed(object sender, RoutedEventArgs e)
         {
-            SettingsService.Instance.Settings.EnableVolumeMappingOnSwitch = ChkEnableVolumeMapping.IsChecked == true;
-            SettingsService.Instance.Save();
+            if (_isUpdatingUi || ChkEnableVolumeMapping == null) return;
+
+            try
+            {
+                SettingsService.Instance.Settings.EnableVolumeMappingOnSwitch = ChkEnableVolumeMapping.IsChecked == true;
+                SettingsService.Instance.Save();
+            }
+            catch { }
         }
 
         #endregion
@@ -386,93 +572,102 @@ namespace AudioSwitcher.UI
 
         private void RedrawCurveGraph()
         {
-            CanvasCurveGraph.Children.Clear();
+            if (CanvasCurveGraph == null) return;
 
-            double w = CanvasCurveGraph.ActualWidth;
-            double h = CanvasCurveGraph.ActualHeight;
-            if (w < 40 || h < 40) return;
-
-            double pad = 16.0;
-            double plotW = w - pad * 2.0;
-            double plotH = h - pad * 2.0;
-
-            // Draw grid lines
-            for (int i = 0; i <= 4; i++)
+            try
             {
-                double fraction = i / 4.0;
-                double x = pad + fraction * plotW;
-                double y = pad + (1.0 - fraction) * plotH;
+                CanvasCurveGraph.Children.Clear();
 
-                // Vertical grid line
-                var vLine = new Line
-                {
-                    X1 = x, Y1 = pad,
-                    X2 = x, Y2 = pad + plotH,
-                    Stroke = new SolidColorBrush(MediaColor.FromRgb(38, 38, 48)),
-                    StrokeThickness = 1
-                };
-                CanvasCurveGraph.Children.Add(vLine);
+                double w = CanvasCurveGraph.ActualWidth;
+                double h = CanvasCurveGraph.ActualHeight;
+                if (w < 40 || h < 40 || _currentProfile == null || _currentProfile.Points == null) return;
 
-                // Horizontal grid line
-                var hLine = new Line
+                double pad = 16.0;
+                double plotW = w - pad * 2.0;
+                double plotH = h - pad * 2.0;
+
+                // Draw grid lines
+                for (int i = 0; i <= 4; i++)
                 {
-                    X1 = pad, Y1 = y,
-                    X2 = pad + plotW, Y2 = y,
-                    Stroke = new SolidColorBrush(MediaColor.FromRgb(38, 38, 48)),
-                    StrokeThickness = 1
+                    double fraction = i / 4.0;
+                    double x = pad + fraction * plotW;
+                    double y = pad + (1.0 - fraction) * plotH;
+
+                    // Vertical grid line
+                    var vLine = new Line
+                    {
+                        X1 = x, Y1 = pad,
+                        X2 = x, Y2 = pad + plotH,
+                        Stroke = new SolidColorBrush(MediaColor.FromRgb(38, 38, 48)),
+                        StrokeThickness = 1
+                    };
+                    CanvasCurveGraph.Children.Add(vLine);
+
+                    // Horizontal grid line
+                    var hLine = new Line
+                    {
+                        X1 = pad, Y1 = y,
+                        X2 = pad + plotW, Y2 = y,
+                        Stroke = new SolidColorBrush(MediaColor.FromRgb(38, 38, 48)),
+                        StrokeThickness = 1
+                    };
+                    CanvasCurveGraph.Children.Add(hLine);
+                }
+
+                // Draw 1:1 reference line (dashed diagonal)
+                var refDiag = new Line
+                {
+                    X1 = pad, Y1 = pad + plotH,
+                    X2 = pad + plotW, Y2 = pad,
+                    Stroke = new SolidColorBrush(MediaColor.FromRgb(75, 85, 99)),
+                    StrokeThickness = 1.5,
+                    StrokeDashArray = new DoubleCollection { 4, 4 }
                 };
-                CanvasCurveGraph.Children.Add(hLine);
+                CanvasCurveGraph.Children.Add(refDiag);
+
+                // Draw calibrated profile curve
+                var polyline = new Polyline
+                {
+                    Stroke = new SolidColorBrush(MediaColor.FromRgb(59, 130, 246)),
+                    StrokeThickness = 2.5
+                };
+
+                for (double step = 0; step <= 1.001; step += 0.02)
+                {
+                    double targetVal = VolumeMappingService.ForwardMap(_currentProfile, step);
+                    double px = pad + step * plotW;
+                    double py = pad + (1.0 - targetVal) * plotH;
+                    polyline.Points.Add(new WpfPoint(px, py));
+                }
+                CanvasCurveGraph.Children.Add(polyline);
+
+                // Draw calibrated points as circles
+                foreach (var pt in _currentProfile.Points)
+                {
+                    double cx = pad + pt.RefVolume * plotW;
+                    double cy = pad + (1.0 - pt.TargetVolume) * plotH;
+
+                    bool isActive = Math.Abs(pt.RefVolume - _activeRefLevel) < 0.02;
+
+                    var ellipse = new Ellipse
+                    {
+                        Width = isActive ? 12 : 8,
+                        Height = isActive ? 12 : 8,
+                        Fill = isActive
+                            ? new SolidColorBrush(MediaColor.FromRgb(245, 158, 11)) // Amber for active
+                            : new SolidColorBrush(MediaColor.FromRgb(96, 165, 250)),
+                        Stroke = new SolidColorBrush(MediaColor.FromRgb(255, 255, 255)),
+                        StrokeThickness = isActive ? 2 : 1
+                    };
+
+                    Canvas.SetLeft(ellipse, cx - ellipse.Width / 2.0);
+                    Canvas.SetTop(ellipse, cy - ellipse.Height / 2.0);
+                    CanvasCurveGraph.Children.Add(ellipse);
+                }
             }
-
-            // Draw 1:1 reference line (dashed diagonal)
-            var refDiag = new Line
+            catch (Exception ex)
             {
-                X1 = pad, Y1 = pad + plotH,
-                X2 = pad + plotW, Y2 = pad,
-                Stroke = new SolidColorBrush(MediaColor.FromRgb(75, 85, 99)),
-                StrokeThickness = 1.5,
-                StrokeDashArray = new DoubleCollection { 4, 4 }
-            };
-            CanvasCurveGraph.Children.Add(refDiag);
-
-            // Draw calibrated profile curve
-            var polyline = new Polyline
-            {
-                Stroke = new SolidColorBrush(MediaColor.FromRgb(59, 130, 246)),
-                StrokeThickness = 2.5
-            };
-
-            for (double step = 0; step <= 1.001; step += 0.02)
-            {
-                double targetVal = VolumeMappingService.ForwardMap(_currentProfile, step);
-                double px = pad + step * plotW;
-                double py = pad + (1.0 - targetVal) * plotH;
-                polyline.Points.Add(new WpfPoint(px, py));
-            }
-            CanvasCurveGraph.Children.Add(polyline);
-
-            // Draw calibrated points as circles
-            foreach (var pt in _currentProfile.Points)
-            {
-                double cx = pad + pt.RefVolume * plotW;
-                double cy = pad + (1.0 - pt.TargetVolume) * plotH;
-
-                bool isActive = Math.Abs(pt.RefVolume - _activeRefLevel) < 0.02;
-
-                var ellipse = new Ellipse
-                {
-                    Width = isActive ? 12 : 8,
-                    Height = isActive ? 12 : 8,
-                    Fill = isActive
-                        ? new SolidColorBrush(MediaColor.FromRgb(245, 158, 11)) // Amber for active
-                        : new SolidColorBrush(MediaColor.FromRgb(96, 165, 250)),
-                    Stroke = new SolidColorBrush(MediaColor.FromRgb(255, 255, 255)),
-                    StrokeThickness = isActive ? 2 : 1
-                };
-
-                Canvas.SetLeft(ellipse, cx - ellipse.Width / 2.0);
-                Canvas.SetTop(ellipse, cy - ellipse.Height / 2.0);
-                CanvasCurveGraph.Children.Add(ellipse);
+                System.Diagnostics.Debug.WriteLine($"RedrawCurveGraph error: {ex.Message}");
             }
         }
 

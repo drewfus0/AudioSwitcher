@@ -19,6 +19,28 @@ namespace AudioSwitcher
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            DispatcherUnhandledException += (s, args) =>
+            {
+                try
+                {
+                    string msg = $"Unhandled UI Exception:\n{args.Exception}";
+                    System.IO.File.AppendAllText("crash_log.txt", $"[{DateTime.Now}] {msg}\n\n");
+                    MessageBox.Show(args.Exception.Message, "AudioSwitcher Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                catch { }
+                args.Handled = true;
+            };
+
+            AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+            {
+                try
+                {
+                    string msg = $"Unhandled AppDomain Exception:\n{args.ExceptionObject}";
+                    System.IO.File.AppendAllText("crash_log.txt", $"[{DateTime.Now}] {msg}\n\n");
+                }
+                catch { }
+            };
+
             base.OnStartup(e);
 
             if (e.Args.Contains("--test"))

@@ -202,10 +202,10 @@ namespace AudioSwitcher.CoreAudio
         [PreserveSig] int Stop();
         [PreserveSig] int Reset();
         [PreserveSig] int SetEventHandle(IntPtr eventHandle);
-        [PreserveSig] int GetService(ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] out object ppv);
+        [PreserveSig] int GetService(ref Guid riid, out IntPtr ppv);
     }
 
-    [Guid("F2942F23-8861-4721-8A6D-05505F4E6189"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("F294ACFC-3146-4483-A7BF-ADDCA7C260E2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal interface IAudioRenderClient
     {
         [PreserveSig] int GetBuffer(uint NumFramesRequested, out IntPtr ppData);

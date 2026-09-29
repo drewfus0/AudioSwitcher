@@ -639,12 +639,22 @@ namespace AudioSwitcher.UI
 
         private void BtnOpenCalibrationLab_Click(object sender, RoutedEventArgs e)
         {
-            var win = new VolumeCalibrationWindow
+            try
             {
-                Owner = Window.GetWindow(this)
-            };
-            win.ShowDialog();
-            ReloadData();
+                var win = new VolumeCalibrationWindow();
+                var parentWin = Window.GetWindow(this);
+                if (parentWin != null && parentWin.IsLoaded && parentWin.IsVisible)
+                {
+                    win.Owner = parentWin;
+                }
+                win.ShowDialog();
+                ReloadData();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error launching VolumeCalibrationWindow: {ex}");
+                MessageBox.Show($"Unable to open Volume Calibration Lab:\n{ex.Message}", "AudioSwitcher", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         #endregion

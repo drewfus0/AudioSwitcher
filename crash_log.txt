@@ -1,0 +1,10 @@
+[29/09/2026 4:03:49 PM] Unhandled UI Exception:
+System.ApplicationException: Object synchronization method was called from an unsynchronized block of code.
+   at System.Threading.Mutex.ReleaseMutex()
+   at AudioSwitcher.App.OnExit(ExitEventArgs e) in C:\Users\drewf\vscode\AudioSwitcher\App.xaml.cs:line 190
+   at System.Windows.Application.DoShutdown()
+   at System.Windows.Application.ShutdownImpl()
+   at System.Windows.Application.ShutdownCallback(Object arg)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+

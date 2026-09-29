@@ -247,15 +247,24 @@ namespace AudioSwitcher.UI
 
         private void BtnOpenVolumeCalibration_Click(object sender, RoutedEventArgs e)
         {
-            var win = new VolumeCalibrationWindow
+            try
             {
-                Owner = this
-            };
-            win.ShowDialog();
-            CtrlOutputSound.ReloadData();
-            CtrlOutputComms.ReloadData();
-            CtrlInputSound.ReloadData();
-            CtrlInputComms.ReloadData();
+                var win = new VolumeCalibrationWindow();
+                if (IsLoaded && IsVisible)
+                {
+                    win.Owner = this;
+                }
+                win.ShowDialog();
+                CtrlOutputSound.ReloadData();
+                CtrlOutputComms.ReloadData();
+                CtrlInputSound.ReloadData();
+                CtrlInputComms.ReloadData();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error opening VolumeCalibrationWindow: {ex}");
+                MessageBox.Show($"Unable to open Volume Calibration Lab:\n{ex.Message}", "AudioSwitcher", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void BtnRescanDevices_Click(object sender, RoutedEventArgs e)
