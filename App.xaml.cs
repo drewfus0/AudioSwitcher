@@ -11,6 +11,9 @@ namespace AudioSwitcher
     public partial class App : System.Windows.Application
     {
         private static Mutex? _mutex;
+        private static bool _ownsMutex = false;
+        private static EventWaitHandle? _showWindowEvent;
+        private static RegisteredWaitHandle? _registeredWait;
         private TrayIconManager? _trayIconManager;
         private MainWindow? _mainWindow;
 
@@ -121,19 +124,61 @@ namespace AudioSwitcher
 
             // Single-instance enforcement
             const string mutexName = "AudioSwitcher_App_SingleInstance_Mutex";
-            _mutex = new Mutex(true, mutexName, out bool isNewInstance);
+            const string eventName = "AudioSwitcher_App_ShowWindow_Event";
+
+            bool isNewInstance;
+            try
+            {
+                _mutex = new Mutex(true, mutexName, out isNewInstance);
+                _ownsMutex = isNewInstance;
+            }
+            catch (Exception)
+            {
+                isNewInstance = false;
+                _ownsMutex = false;
+            }
+
             if (!isNewInstance)
             {
-                // Already running
-                MessageBox.Show(
-                    "AudioSwitcher is already running in your System Tray.\nCheck the bottom-right taskbar notification area.",
-                    "AudioSwitcher",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information
-                );
+                // Signal the existing running instance to bring its window to the foreground
+                try
+                {
+                    using var ev = EventWaitHandle.OpenExisting(eventName);
+                    ev.Set();
+                }
+                catch
+                {
+                    MessageBox.Show(
+                        "AudioSwitcher is already running in your System Tray.\nCheck the bottom-right taskbar notification area.",
+                        "AudioSwitcher",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information
+                    );
+                }
+
                 Shutdown(0);
                 return;
             }
+
+            // Create the named event so subsequent launches can wake up / restore this instance
+            try
+            {
+                _showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, eventName);
+                _registeredWait = ThreadPool.RegisterWaitForSingleObject(
+                    _showWindowEvent,
+                    (state, timedOut) =>
+                    {
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            ShowMainWindow();
+                        }));
+                    },
+                    null,
+                    Timeout.Infinite,
+                    false
+                );
+            }
+            catch { }
 
             // Initialize services
             _ = SettingsService.Instance;
@@ -185,10 +230,31 @@ namespace AudioSwitcher
 
         protected override void OnExit(ExitEventArgs e)
         {
+            try
+            {
+                _registeredWait?.Unregister(null);
+                _showWindowEvent?.Dispose();
+            }
+            catch { }
+
             _trayIconManager?.Dispose();
             AudioDeviceManager.Instance.Dispose();
-            _mutex?.ReleaseMutex();
-            _mutex?.Dispose();
+
+            if (_ownsMutex && _mutex != null)
+            {
+                try
+                {
+                    _mutex.ReleaseMutex();
+                }
+                catch { }
+            }
+
+            try
+            {
+                _mutex?.Dispose();
+            }
+            catch { }
+
             base.OnExit(e);
         }
     }

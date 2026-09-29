@@ -56,6 +56,9 @@ namespace AudioSwitcher.UI
 
     public class TrayIconManager : IDisposable
     {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
         private readonly NotifyIcon _notifyIcon;
         private readonly ContextMenuStrip _contextMenu;
 
@@ -101,12 +104,32 @@ namespace AudioSwitcher.UI
                 }
             };
 
+            _notifyIcon.MouseUp += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    var field = typeof(NotifyIcon).GetField("window", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (field?.GetValue(_notifyIcon) is NativeWindow nativeWindow)
+                    {
+                        SetForegroundWindow(nativeWindow.Handle);
+                    }
+                }
+            };
+
+            // Initial build so menu is populated immediately on startup
+            BuildContextMenu();
+
             // Register auto-switch notifications
             PrioritySwitcherService.Instance.DeviceAutoSwitched += OnDeviceAutoSwitched;
         }
 
         private void ContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            var field = typeof(NotifyIcon).GetField("window", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field?.GetValue(_notifyIcon) is NativeWindow nativeWindow)
+            {
+                SetForegroundWindow(nativeWindow.Handle);
+            }
             BuildContextMenu();
         }
 

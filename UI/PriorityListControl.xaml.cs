@@ -240,14 +240,8 @@ namespace AudioSwitcher.UI
 
         #region Drag and Drop Reordering
 
-        private void ItemCard_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void DragHandle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (IsInteractiveControl(e.OriginalSource as DependencyObject))
-            {
-                _draggedItem = null;
-                return;
-            }
-
             _dragStartPoint = e.GetPosition(this);
             if (sender is FrameworkElement fe && fe.DataContext is PriorityItemViewModel vm)
             {
@@ -255,7 +249,7 @@ namespace AudioSwitcher.UI
             }
         }
 
-        private void ItemCard_PreviewMouseMove(object sender, MouseEventArgs e)
+        private void DragHandle_PreviewMouseMove(object sender, MouseEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed && _draggedItem != null && !_isDragging)
             {
@@ -283,7 +277,7 @@ namespace AudioSwitcher.UI
             }
         }
 
-        private void ItemCard_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void DragHandle_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             _draggedItem = null;
             _isDragging = false;

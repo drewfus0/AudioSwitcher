@@ -140,7 +140,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Hidden & Ignored Devices Card -->
+                        <!-- All System Audio Devices & Filter Status Card -->
                         <Border Background="#1E1E24" CornerRadius="10" Padding="18,14" Margin="0,0,0,14" BorderBrush="#2E2E38" BorderThickness="1">
                             <StackPanel>
                                 <Grid Margin="0,0,0,8">
@@ -148,39 +148,69 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="🚫 Hidden &amp; Ignored Devices (Device Filter)" FontSize="14" FontWeight="SemiBold" Foreground="#60A5FA" VerticalAlignment="Center" />
-                                    <Button x:Name="BtnUnhideAll" Grid.Column="1" Content="Unhide All" Style="{DynamicResource SmallBtnStyle}" Padding="10,4" Click="BtnUnhideAll_Click" ToolTip="Restore all hidden devices" />
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="🎧 All System Audio Devices &amp; Filter Status" FontSize="14" FontWeight="SemiBold" Foreground="#60A5FA" />
+                                        <TextBlock x:Name="TxtDeviceSummaryStats" Text="Total detected: 0 • Visible: 0 • Hidden: 0" FontSize="11" Foreground="#9CA3AF" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <Button x:Name="BtnUnhideAll" Grid.Column="1" Content="✓ Unhide All Devices" Style="{DynamicResource SmallBtnStyle}" Padding="12,5" Click="BtnUnhideAll_Click" ToolTip="Restore all hidden devices to active lists" />
                                 </Grid>
                                 
-                                <TextBlock Text="Devices listed here are excluded from automatic switching, dropdown lists, and system tray menus." FontSize="12" Foreground="#9CA3AF" TextWrapping="Wrap" Margin="0,0,0,12" />
+                                <TextBlock Text="View all detected audio hardware endpoints across Windows. Highlighted badges indicate whether a device is active/connected and whether it is visible or hidden/ignored." FontSize="12" Foreground="#9CA3AF" TextWrapping="Wrap" Margin="0,0,0,12" />
 
-                                <!-- Quick Hide from Settings -->
-                                <Grid Margin="0,0,0,12">
+                                <!-- Filter tabs & search bar -->
+                                <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="CmbDevicesToHide" Grid.Column="0" Height="34" Margin="0,0,8,0" Style="{DynamicResource DarkComboBoxStyle}" />
-                                    <Button x:Name="BtnHideDeviceInSettings" Grid.Column="1" Content="🚫 Hide Device" Style="{DynamicResource SmallBtnStyle}" Height="34" Padding="12,0" Click="BtnHideDeviceInSettings_Click" />
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <RadioButton x:Name="RadFilterAll" Content="All Devices" GroupName="DevFilter" IsChecked="True" Style="{DynamicResource FilterRadioStyle}" Checked="DeviceFilter_Changed" Margin="0,0,6,0" />
+                                        <RadioButton x:Name="RadFilterOutputs" Content="🔊 Outputs" GroupName="DevFilter" Style="{DynamicResource FilterRadioStyle}" Checked="DeviceFilter_Changed" Margin="0,0,6,0" />
+                                        <RadioButton x:Name="RadFilterInputs" Content="🎤 Inputs" GroupName="DevFilter" Style="{DynamicResource FilterRadioStyle}" Checked="DeviceFilter_Changed" Margin="0,0,6,0" />
+                                        <RadioButton x:Name="RadFilterHidden" Content="🚫 Hidden Only" GroupName="DevFilter" Style="{DynamicResource FilterRadioStyle}" Checked="DeviceFilter_Changed" Margin="0,0,6,0" />
+                                    </StackPanel>
+                                    <TextBox x:Name="TxtSearchSystemDevices" Grid.Column="1" Height="28" Background="#18181F" Foreground="#F4F4F5" BorderBrush="#353545" BorderThickness="1" Padding="8,4" FontSize="12" Margin="10,0,0,0" VerticalContentAlignment="Center" TextChanged="TxtSearchSystemDevices_TextChanged" />
                                 </Grid>
 
-                                <!-- Hidden Devices ItemsControl / List -->
-                                <Border Background="#18181F" CornerRadius="8" BorderBrush="#2B2B36" BorderThickness="1" Padding="10" MinHeight="50">
+                                <!-- Devices List -->
+                                <Border Background="#18181F" CornerRadius="8" BorderBrush="#2B2B36" BorderThickness="1" Padding="10" MinHeight="60">
                                     <Grid>
-                                        <TextBlock x:Name="TxtNoHiddenDevices" Text="No devices are currently hidden. You can hide devices using the 🚫 button in any priority tab." FontSize="12" Foreground="#52525B" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10" />
-                                        <ItemsControl x:Name="ItemsHiddenDevices">
+                                        <TextBlock x:Name="TxtNoMatchingSystemDevices" Text="No matching audio devices found." FontSize="12" Foreground="#52525B" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="14" Visibility="Collapsed" />
+                                        <ItemsControl x:Name="ItemsAllSystemDevices">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="#24242D" CornerRadius="6" Padding="10,8" Margin="0,0,0,6" BorderBrush="#353542" BorderThickness="1">
+                                                    <Border Background="{Binding CardBackground}" CornerRadius="6" Padding="12,10" Margin="0,0,0,6" BorderBrush="{Binding CardBorderBrush}" BorderThickness="1">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
                                                                 <ColumnDefinition Width="*" />
                                                                 <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
-                                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Name}" Foreground="#F4F4F5" FontSize="13" FontWeight="Medium" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+
+                                                            <!-- Flow Icon -->
+                                                            <TextBlock Grid.Column="0" Text="{Binding FlowIcon}" FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0" />
+
+                                                            <!-- Device Name and Flow Subtitle -->
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Name}" Foreground="#F4F4F5" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding FlowLabel}" Foreground="#71717A" FontSize="11" Margin="0,2,0,0" />
                                                             </StackPanel>
-                                                            <Button Grid.Column="1" Content="✓ Unhide / Restore" Style="{DynamicResource SmallBtnStyle}" Padding="10,4" Click="BtnUnhideDevice_Click" Tag="{Binding}" ToolTip="Restore this device to available lists" />
+
+                                                            <!-- Badges -->
+                                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                                                                <!-- Connected/Disconnected Status Badge -->
+                                                                <Border Background="{Binding StatusBadgeBackground}" CornerRadius="4" Padding="7,3" Margin="0,0,6,0">
+                                                                    <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBadgeForeground}" FontSize="11" FontWeight="Medium" />
+                                                                </Border>
+                                                                <!-- Visible/Hidden Badge -->
+                                                                <Border Background="{Binding VisibilityBadgeBackground}" BorderBrush="{Binding VisibilityBadgeBorder}" BorderThickness="1" CornerRadius="4" Padding="7,3">
+                                                                    <TextBlock Text="{Binding VisibilityBadgeText}" Foreground="{Binding VisibilityBadgeForeground}" FontSize="11" FontWeight="SemiBold" />
+                                                                </Border>
+                                                            </StackPanel>
+
+                                                            <!-- Action Button (Toggle Hide/Unhide) -->
+                                                            <Button Grid.Column="3" Content="{Binding ActionButtonText}" ToolTip="{Binding ActionButtonTooltip}" Style="{DynamicResource SmallBtnStyle}" Padding="12,5" VerticalAlignment="Center" Click="BtnToggleDeviceVisibility_Click" Tag="{Binding}" />
                                                         </Grid>
                                                     </Border>
                                                 </DataTemplate>

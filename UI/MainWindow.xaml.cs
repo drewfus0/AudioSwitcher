@@ -107,54 +107,99 @@ namespace AudioSwitcher.UI
 
         private void RefreshHiddenDevices()
         {
-            var ignored = SettingsService.Instance.Settings.IgnoredDevices;
-            ItemsHiddenDevices.ItemsSource = null;
-            ItemsHiddenDevices.ItemsSource = ignored;
-
-            TxtNoHiddenDevices.Visibility = (ignored.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
-            BtnUnhideAll.IsEnabled = ignored.Count > 0;
-
-            // Populate CmbDevicesToHide with all detected devices not already ignored
             var allDevices = AudioDeviceManager.Instance.GetDevices();
-            CmbDevicesToHide.Items.Clear();
+
+            int totalCount = allDevices.Count;
+            int hiddenCount = allDevices.Count(d => SettingsService.Instance.IsDeviceIgnored(d.Id, d.Name));
+            int visibleCount = totalCount - hiddenCount;
+
+            if (TxtDeviceSummaryStats != null)
+            {
+                TxtDeviceSummaryStats.Text = $"Total detected: {totalCount} • Visible: {visibleCount} • Hidden: {hiddenCount}";
+            }
+
+            if (BtnUnhideAll != null)
+            {
+                BtnUnhideAll.IsEnabled = hiddenCount > 0;
+            }
+
+            string searchText = TxtSearchSystemDevices?.Text?.Trim() ?? string.Empty;
+            bool filterOutputs = RadFilterOutputs?.IsChecked == true;
+            bool filterInputs = RadFilterInputs?.IsChecked == true;
+            bool filterHidden = RadFilterHidden?.IsChecked == true;
+
+            var items = new System.Collections.Generic.List<SystemDeviceItem>();
 
             foreach (var d in allDevices)
             {
-                if (!SettingsService.Instance.IsDeviceIgnored(d.Id, d.Name))
+                bool isIgnored = SettingsService.Instance.IsDeviceIgnored(d.Id, d.Name);
+
+                if (filterOutputs && d.DataFlow != EDataFlow.eRender) continue;
+                if (filterInputs && d.DataFlow != EDataFlow.eCapture) continue;
+                if (filterHidden && !isIgnored) continue;
+
+                if (!string.IsNullOrEmpty(searchText) && !d.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
                 {
-                    string flowLabel = d.DataFlow == EDataFlow.eRender ? "Output" : "Input";
-                    CmbDevicesToHide.Items.Add(new System.Windows.Controls.ComboBoxItem
-                    {
-                        Content = $"[{flowLabel}] {d.Name} ({d.StatusText})",
-                        Tag = d
-                    });
+                    continue;
                 }
+
+                items.Add(new SystemDeviceItem
+                {
+                    Id = d.Id,
+                    Name = d.Name,
+                    DataFlow = d.DataFlow,
+                    StatusText = d.StatusText,
+                    IsActive = d.IsActive,
+                    IsIgnored = isIgnored
+                });
             }
 
-            if (CmbDevicesToHide.Items.Count > 0)
+            // Sort: Visible first, then active first, then by name
+            items = items.OrderBy(x => x.IsIgnored)
+                         .ThenByDescending(x => x.IsActive)
+                         .ThenBy(x => x.DataFlow)
+                         .ThenBy(x => x.Name)
+                         .ToList();
+
+            if (ItemsAllSystemDevices != null)
             {
-                CmbDevicesToHide.SelectedIndex = 0;
-                BtnHideDeviceInSettings.IsEnabled = true;
+                ItemsAllSystemDevices.ItemsSource = null;
+                ItemsAllSystemDevices.ItemsSource = items;
             }
-            else
+
+            if (TxtNoMatchingSystemDevices != null)
             {
-                CmbDevicesToHide.Items.Add(new System.Windows.Controls.ComboBoxItem
-                {
-                    Content = "(All detected devices are hidden)",
-                    IsEnabled = false
-                });
-                CmbDevicesToHide.SelectedIndex = 0;
-                BtnHideDeviceInSettings.IsEnabled = false;
+                TxtNoMatchingSystemDevices.Visibility = (items.Count == 0) ? Visibility.Visible : Visibility.Collapsed;
             }
         }
 
-        private void BtnUnhideDevice_Click(object sender, RoutedEventArgs e)
+        private void DeviceFilter_Changed(object sender, RoutedEventArgs e)
         {
-            if (sender is System.Windows.Controls.Button btn && btn.Tag is IgnoredDeviceEntry entry)
+            RefreshHiddenDevices();
+        }
+
+        private void TxtSearchSystemDevices_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            RefreshHiddenDevices();
+        }
+
+        private void BtnToggleDeviceVisibility_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is SystemDeviceItem item)
             {
-                SettingsService.Instance.UnignoreDevice(entry.Id, entry.Name);
+                if (item.IsIgnored)
+                {
+                    SettingsService.Instance.UnignoreDevice(item.Id, item.Name);
+                    UpdateStatus($"Restored {item.Name} ({DateTime.Now:T})");
+                }
+                else
+                {
+                    SettingsService.Instance.IgnoreDevice(item.Id, item.Name);
+                    UpdateStatus($"Hidden {item.Name} ({DateTime.Now:T})");
+                }
+
                 PrioritySwitcherService.Instance.EvaluateAllPriorities();
-                UpdateStatus($"Restored {entry.Name} ({DateTime.Now:T})");
+                RefreshHiddenDevices();
             }
         }
 
@@ -162,17 +207,8 @@ namespace AudioSwitcher.UI
         {
             SettingsService.Instance.UnignoreAllDevices();
             PrioritySwitcherService.Instance.EvaluateAllPriorities();
+            RefreshHiddenDevices();
             UpdateStatus($"Restored all hidden devices ({DateTime.Now:T})");
-        }
-
-        private void BtnHideDeviceInSettings_Click(object sender, RoutedEventArgs e)
-        {
-            if (CmbDevicesToHide.SelectedItem is System.Windows.Controls.ComboBoxItem item && item.Tag is AudioDevice device)
-            {
-                SettingsService.Instance.IgnoreDevice(device.Id, device.Name);
-                PrioritySwitcherService.Instance.EvaluateAllPriorities();
-                UpdateStatus($"Hidden {device.Name} ({DateTime.Now:T})");
-            }
         }
 
         private void OnDevicesUpdated()
@@ -303,7 +339,8 @@ namespace AudioSwitcher.UI
             }
             else
             {
-                ExitApplication();
+                _isExplicitExit = true;
+                Application.Current.Shutdown();
             }
         }
 
@@ -331,17 +368,49 @@ namespace AudioSwitcher.UI
                 WindowState = WindowState.Normal;
             }
             Activate();
+            Topmost = true;
+            Topmost = false;
             Focus();
         }
 
         public void ExitApplication()
         {
             _isExplicitExit = true;
-            if (!IsClosed)
+            try
             {
-                Close();
+                if (!IsClosed)
+                {
+                    Close();
+                }
             }
+            catch { }
             Application.Current.Shutdown();
         }
+    }
+
+    public class SystemDeviceItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public EDataFlow DataFlow { get; set; }
+        public string FlowIcon => DataFlow == EDataFlow.eRender ? "🔊" : "🎤";
+        public string FlowLabel => DataFlow == EDataFlow.eRender ? "Output (Playback)" : "Input (Microphone / Capture)";
+        public string StatusText { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public bool IsIgnored { get; set; }
+
+        public string VisibilityBadgeText => IsIgnored ? "🚫 Hidden / Ignored" : "👁️ Visible";
+        public string VisibilityBadgeBackground => IsIgnored ? "#3F1D1D" : "#14532D";
+        public string VisibilityBadgeForeground => IsIgnored ? "#F87171" : "#4ADE80";
+        public string VisibilityBadgeBorder => IsIgnored ? "#7F1D1D" : "#166534";
+
+        public string StatusBadgeBackground => IsActive ? "#14532D" : "#272730";
+        public string StatusBadgeForeground => IsActive ? "#4ADE80" : "#9CA3AF";
+
+        public string CardBorderBrush => IsIgnored ? "#452222" : (IsActive ? "#2E384D" : "#2E2E38");
+        public string CardBackground => IsIgnored ? "#1F1818" : "#24242D";
+
+        public string ActionButtonText => IsIgnored ? "✓ Unhide / Restore" : "🚫 Hide Device";
+        public string ActionButtonTooltip => IsIgnored ? "Restore this device so it appears in priority lists and tray menus" : "Hide this device and exclude it from auto-switching";
     }
 }

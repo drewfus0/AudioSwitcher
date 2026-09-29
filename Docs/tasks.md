@@ -13,9 +13,9 @@ why do this? new device for testing/trying. broken device temporarily out of com
 ~~->have them able to switch back and forth to test and calibrate.~~
 ~~->would we need to do this for multiple of sound volumes? to get a curve/gradient of volumes to map from?~~
 not worried about inputs for now.
-~~->how to handle the many to many possible mapping of the devices? all devices map back to a master volume?~~
-->hidden/ignored devices. list to list all devices and highlight if hidden/ignored. 
+~~->hidden/ignored devices. list to list all devices and highlight if hidden/ignored.~~ 
 
+~~-> first time i right click on the task bar icon the menu fails to come up and requres a second try.~~
 
 big ideas for later.(ignore for now.)
 ->app based priority lists?

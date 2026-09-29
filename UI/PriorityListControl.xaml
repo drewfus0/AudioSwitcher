@@ -140,9 +140,6 @@
                                         Padding="10,8"
                                         AllowDrop="True"
                                         Tag="{Binding}"
-                                        PreviewMouseLeftButtonDown="ItemCard_PreviewMouseLeftButtonDown"
-                                        PreviewMouseMove="ItemCard_PreviewMouseMove"
-                                        PreviewMouseLeftButtonUp="ItemCard_PreviewMouseLeftButtonUp"
                                         DragOver="ItemCard_DragOver"
                                         DragLeave="ItemCard_DragLeave"
                                         Drop="ItemCard_Drop">
@@ -167,21 +164,44 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Left Group: Stripe + Drag Grip + Rank Badge -->
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                                                <!-- Left Color Indicator Bar -->
-                                                <Border Width="4" Height="28" CornerRadius="2" Background="{Binding IndicatorStripeBrush}" Margin="0,0,6,0" />
+                                            <!-- Left Drag Handle Zone (Click & drag only from here) -->
+                                            <Border x:Name="DragGripHandle"
+                                                    Grid.Column="0"
+                                                    CornerRadius="6"
+                                                    Padding="5,4,8,4"
+                                                    Margin="0,0,12,0"
+                                                    Cursor="SizeNS"
+                                                    ToolTip="⠿ Click &amp; drag here to reorder device priority"
+                                                    Tag="{Binding}"
+                                                    PreviewMouseLeftButtonDown="DragHandle_PreviewMouseLeftButtonDown"
+                                                    PreviewMouseMove="DragHandle_PreviewMouseMove"
+                                                    PreviewMouseLeftButtonUp="DragHandle_PreviewMouseLeftButtonUp">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#17171F" />
+                                                        <Setter Property="BorderBrush" Value="#323242" />
+                                                        <Setter Property="BorderThickness" Value="1" />
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#252536" />
+                                                                <Setter Property="BorderBrush" Value="#60A5FA" />
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- Left Color Indicator Bar -->
+                                                    <Border Width="3.5" Height="24" CornerRadius="1.5" Background="{Binding IndicatorStripeBrush}" Margin="0,0,6,0" />
 
-                                                <!-- Drag Handle Icon -->
-                                                <Border Width="18" Height="28" Background="Transparent" Cursor="SizeAll" VerticalAlignment="Center" Margin="0,0,6,0" ToolTip="Drag up or down to reorder priority">
-                                                    <TextBlock Text="⠿" FontSize="15" Foreground="#71717A" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
+                                                    <!-- Drag Grip Dots Icon -->
+                                                    <TextBlock Text="⠿" FontSize="14" Foreground="#8E8EA0" VerticalAlignment="Center" Margin="0,0,6,0" />
 
-                                                <!-- Rank Badge -->
-                                                <Border CornerRadius="6" Background="#18181D" Padding="7,4" VerticalAlignment="Center" MinWidth="40">
-                                                    <TextBlock Text="{Binding RankBadgeText}" FontWeight="Bold" FontSize="11" Foreground="#60A5FA" HorizontalAlignment="Center" />
-                                                </Border>
-                                            </StackPanel>
+                                                    <!-- Rank Badge -->
+                                                    <Border CornerRadius="4" Background="#101015" Padding="6,2" VerticalAlignment="Center" MinWidth="36">
+                                                        <TextBlock Text="{Binding RankBadgeText}" FontWeight="Bold" FontSize="11" Foreground="#60A5FA" HorizontalAlignment="Center" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Border>
 
                                             <!-- Middle Group: Device Title, Badges, Status & Volume -->
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
