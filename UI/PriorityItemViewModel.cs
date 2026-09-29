@@ -169,7 +169,7 @@ namespace AudioSwitcher.UI
 
         public bool HasVolumeControl
         {
-            get => _hasVolumeControl && _isConnected;
+            get => _hasVolumeControl;
             set
             {
                 if (_hasVolumeControl != value)

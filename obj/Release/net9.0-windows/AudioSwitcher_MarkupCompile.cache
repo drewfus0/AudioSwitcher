@@ -10,11 +10,11 @@ none
 false
 TRACE;RELEASE;NET;NET9_0;NETCOREAPP
 C:\Users\drewf\vscode\AudioSwitcher\App.xaml
-3-572805610
+4-155832618
 
-18-900390215
+19-2024354828
 210-1500217837
-UI\MainWindow.xaml;UI\PriorityListControl.xaml;UI\VolumeCalibrationWindow.xaml;
+UI\MainWindow.xaml;UI\PriorityListControl.xaml;UI\ToastNotificationWindow.xaml;UI\VolumeCalibrationWindow.xaml;
 
 False
 

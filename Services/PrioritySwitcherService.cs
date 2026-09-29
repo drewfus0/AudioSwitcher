@@ -16,6 +16,11 @@ namespace AudioSwitcher.Services
         private readonly SettingsService _settingsService;
         private int _isEvaluating = 0;
 
+        // Active output tracking for reliable volume auto-leveling
+        private string? _lastActiveOutputDeviceId;
+        private string? _lastActiveOutputDeviceName;
+        private float _lastActiveOutputVolume = 0.5f;
+
         // Temporary overrides per category (category -> deviceId)
         private readonly Dictionary<AudioCategory, string> _temporaryOverrides = new();
         private readonly object _overrideLock = new();
@@ -27,6 +32,23 @@ namespace AudioSwitcher.Services
         {
             _deviceManager = AudioDeviceManager.Instance;
             _settingsService = SettingsService.Instance;
+
+            // Seed initial active output
+            var initialDefault = _deviceManager.GetDefaultDevice(AudioCategory.OutputSound);
+            if (initialDefault != null)
+            {
+                _lastActiveOutputDeviceId = initialDefault.Id;
+                _lastActiveOutputDeviceName = initialDefault.Name;
+                _lastActiveOutputVolume = AudioVolumeManager.Instance.GetVolume(initialDefault.Id);
+            }
+
+            AudioVolumeManager.Instance.VolumeChanged += (devId, vol, mute) =>
+            {
+                if (string.Equals(devId, _lastActiveOutputDeviceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _lastActiveOutputVolume = vol;
+                }
+            };
 
             _deviceManager.DevicesUpdated += OnDevicesUpdated;
             _settingsService.SettingsChanged += OnSettingsChanged;
@@ -78,7 +100,13 @@ namespace AudioSwitcher.Services
                 }
             }
 
-            _deviceManager.SetDefaultDevice(deviceId, category);
+            bool success = _deviceManager.SetDefaultDevice(deviceId, category);
+            var dev = _deviceManager.GetDeviceById(deviceId);
+            if (dev != null && success)
+            {
+                DeviceAutoSwitched?.Invoke(category, dev);
+            }
+
             TemporaryOverrideChanged?.Invoke(category, deviceId);
             if (_settingsService.IsCategoryMirrored(category))
             {
@@ -258,25 +286,78 @@ namespace AudioSwitcher.Services
 
         private void ApplyVolumeMappingIfEnabled(AudioCategory category, string targetDeviceId)
         {
-            if (!_settingsService.Settings.EnableVolumeMappingOnSwitch)
-                return;
-
             if (category.GetDataFlow() != EDataFlow.eRender)
                 return;
 
+            var targetDev = _deviceManager.GetDeviceById(targetDeviceId);
+            if (targetDev == null)
+                return;
+
+            if (!_settingsService.Settings.EnableVolumeMappingOnSwitch)
+            {
+                // When volume mapping is disabled, restore the saved volume & mute state for this device
+                int savedVol = _settingsService.GetSavedDeviceVolume(targetDev.Id, targetDev.Name, -1);
+                if (savedVol >= 0)
+                {
+                    AudioVolumeManager.Instance.SetVolumePercent(targetDev.Id, savedVol);
+                    _lastActiveOutputVolume = savedVol / 100.0f;
+                }
+                else
+                {
+                    _lastActiveOutputVolume = AudioVolumeManager.Instance.GetVolume(targetDev.Id);
+                }
+
+                _lastActiveOutputDeviceId = targetDev.Id;
+                _lastActiveOutputDeviceName = targetDev.Name;
+                return;
+            }
+
             try
             {
-                var currentDefault = _deviceManager.GetDefaultDevice(category);
-                if (currentDefault != null && !string.Equals(currentDefault.Id, targetDeviceId, StringComparison.OrdinalIgnoreCase))
-                {
-                    var targetDev = _deviceManager.GetDeviceById(targetDeviceId);
-                    float currentVol = AudioVolumeManager.Instance.GetVolume(currentDefault.Id);
-                    double mappedVol = VolumeMappingService.Instance.MapVolumeBetweenDevices(
-                        currentDefault.Id, currentDefault.Name,
-                        targetDeviceId, targetDev?.Name ?? targetDeviceId,
-                        currentVol);
+                string fromId = _lastActiveOutputDeviceId ?? string.Empty;
+                string fromName = _lastActiveOutputDeviceName ?? fromId;
+                float fromVol = _lastActiveOutputVolume;
 
-                    AudioVolumeManager.Instance.SetVolume(targetDeviceId, (float)mappedVol);
+                // If fromId is empty or same as target, check current default
+                if (string.IsNullOrWhiteSpace(fromId) || string.Equals(fromId, targetDeviceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    var currentDefault = _deviceManager.GetDefaultDevice(category);
+                    if (currentDefault != null && !string.Equals(currentDefault.Id, targetDeviceId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        fromId = currentDefault.Id;
+                        fromName = currentDefault.Name;
+                        fromVol = AudioVolumeManager.Instance.GetLastKnownVolume(currentDefault.Id);
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(fromId) && !string.Equals(fromId, targetDeviceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    double mappedVol = VolumeMappingService.Instance.MapVolumeBetweenDevices(
+                        fromId, fromName,
+                        targetDev.Id, targetDev.Name,
+                        fromVol);
+
+                    AudioVolumeManager.Instance.SetVolume(targetDev.Id, (float)mappedVol);
+                    _lastActiveOutputDeviceId = targetDev.Id;
+                    _lastActiveOutputDeviceName = targetDev.Name;
+                    _lastActiveOutputVolume = (float)mappedVol;
+                }
+                else
+                {
+                    // Same device reconnected: restore its saved volume
+                    int savedVol = _settingsService.GetSavedDeviceVolume(targetDev.Id, targetDev.Name, -1);
+                    if (savedVol >= 0)
+                    {
+                        AudioVolumeManager.Instance.SetVolumePercent(targetDev.Id, savedVol);
+                        _lastActiveOutputVolume = savedVol / 100.0f;
+                    }
+                    else
+                    {
+                        _lastActiveOutputVolume = AudioVolumeManager.Instance.GetVolume(targetDev.Id);
+                    }
+
+                    _lastActiveOutputDeviceId = targetDev.Id;
+                    _lastActiveOutputDeviceName = targetDev.Name;
                 }
             }
             catch (Exception ex)

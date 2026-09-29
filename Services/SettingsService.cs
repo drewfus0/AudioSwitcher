@@ -100,6 +100,10 @@ namespace AudioSwitcher.Services
         public bool EnableVolumeMappingOnSwitch { get; set; } = true;
         public string ReferenceDeviceId { get; set; } = string.Empty;
         public List<DeviceVolumeProfile> VolumeProfiles { get; set; } = new();
+
+        // Persistent Device Volume & Mute Memory (survives unplugging, restarts, and USB port changes)
+        public Dictionary<string, int> SavedDeviceVolumes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, bool> SavedDeviceMutes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     public class SettingsService
@@ -272,6 +276,101 @@ namespace AudioSwitcher.Services
                 Settings.VolumeProfiles.Add(profile);
             }
             Save();
+        }
+
+        public int GetSavedDeviceVolume(string? deviceId, string? deviceName, int defaultPercent = 50)
+        {
+            if (Settings.SavedDeviceVolumes == null)
+                return Math.Clamp(defaultPercent, 0, 100);
+
+            if (!string.IsNullOrEmpty(deviceId) && Settings.SavedDeviceVolumes.TryGetValue(deviceId, out int volById))
+            {
+                return Math.Clamp(volById, 0, 100);
+            }
+            if (!string.IsNullOrEmpty(deviceName) && Settings.SavedDeviceVolumes.TryGetValue(deviceName, out int volByName))
+            {
+                return Math.Clamp(volByName, 0, 100);
+            }
+            return Math.Clamp(defaultPercent, 0, 100);
+        }
+
+        public void SetSavedDeviceVolume(string? deviceId, string? deviceName, int percent)
+        {
+            if (Settings.SavedDeviceVolumes == null)
+                Settings.SavedDeviceVolumes = new(StringComparer.OrdinalIgnoreCase);
+
+            int clamped = Math.Clamp(percent, 0, 100);
+            bool changed = false;
+
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                if (!Settings.SavedDeviceVolumes.TryGetValue(deviceId, out int cur) || cur != clamped)
+                {
+                    Settings.SavedDeviceVolumes[deviceId] = clamped;
+                    changed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(deviceName))
+            {
+                if (!Settings.SavedDeviceVolumes.TryGetValue(deviceName, out int cur) || cur != clamped)
+                {
+                    Settings.SavedDeviceVolumes[deviceName] = clamped;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                Save();
+            }
+        }
+
+        public bool GetSavedDeviceMute(string? deviceId, string? deviceName, bool defaultMute = false)
+        {
+            if (Settings.SavedDeviceMutes == null)
+                return defaultMute;
+
+            if (!string.IsNullOrEmpty(deviceId) && Settings.SavedDeviceMutes.TryGetValue(deviceId, out bool muteById))
+            {
+                return muteById;
+            }
+            if (!string.IsNullOrEmpty(deviceName) && Settings.SavedDeviceMutes.TryGetValue(deviceName, out bool muteByName))
+            {
+                return muteByName;
+            }
+            return defaultMute;
+        }
+
+        public void SetSavedDeviceMute(string? deviceId, string? deviceName, bool isMuted)
+        {
+            if (Settings.SavedDeviceMutes == null)
+                Settings.SavedDeviceMutes = new(StringComparer.OrdinalIgnoreCase);
+
+            bool changed = false;
+
+            if (!string.IsNullOrEmpty(deviceId))
+            {
+                if (!Settings.SavedDeviceMutes.TryGetValue(deviceId, out bool cur) || cur != isMuted)
+                {
+                    Settings.SavedDeviceMutes[deviceId] = isMuted;
+                    changed = true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(deviceName))
+            {
+                if (!Settings.SavedDeviceMutes.TryGetValue(deviceName, out bool cur) || cur != isMuted)
+                {
+                    Settings.SavedDeviceMutes[deviceName] = isMuted;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                Save();
+            }
         }
 
         public void Save()

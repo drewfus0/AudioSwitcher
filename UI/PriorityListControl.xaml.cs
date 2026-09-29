@@ -30,6 +30,29 @@ namespace AudioSwitcher.UI
         {
             InitializeComponent();
             ItemsPriorityList.ItemsSource = _items;
+            AudioVolumeManager.Instance.VolumeChanged += OnEndpointVolumeChanged;
+        }
+
+        private void OnEndpointVolumeChanged(string deviceId, float volume, bool isMuted)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var item = _items.FirstOrDefault(x => string.Equals(x.Id, deviceId, StringComparison.OrdinalIgnoreCase)
+                                                   || string.Equals(x.Name, deviceId, StringComparison.OrdinalIgnoreCase));
+                if (item != null)
+                {
+                    _isUpdatingUi = true;
+                    try
+                    {
+                        item.VolumePercent = (int)Math.Round(volume * 100.0f);
+                        item.IsMuted = isMuted;
+                    }
+                    finally
+                    {
+                        _isUpdatingUi = false;
+                    }
+                }
+            }));
         }
 
         public void Initialize(AudioCategory category)
@@ -153,15 +176,21 @@ namespace AudioSwitcher.UI
 
                     int currentRank = rank++;
 
-                    // Query volume status if connected and render
-                    int volPercent = 100;
-                    bool isMuted = false;
-                    bool hasVolumeControl = isConnected && _category.GetDataFlow() == EDataFlow.eRender;
+                    // Query volume status for render devices (live if connected, saved if unplugged)
+                    bool isRender = _category.GetDataFlow() == EDataFlow.eRender;
+                    bool hasVolumeControl = isRender;
+                    int volPercent;
+                    bool isMuted;
 
                     if (isConnected && dev != null)
                     {
                         volPercent = AudioVolumeManager.Instance.GetVolumePercent(dev.Id);
                         isMuted = AudioVolumeManager.Instance.GetMute(dev.Id);
+                    }
+                    else
+                    {
+                        volPercent = SettingsService.Instance.GetSavedDeviceVolume(p.Id, p.Name, 50);
+                        isMuted = SettingsService.Instance.GetSavedDeviceMute(p.Id, p.Name, false);
                     }
 
                     _items.Add(new PriorityItemViewModel
@@ -613,21 +642,35 @@ namespace AudioSwitcher.UI
         private void DeviceVolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (_isUpdatingUi) return;
-            if (sender is Slider slider && slider.Tag is PriorityItemViewModel vm && vm.IsConnected)
+            if (sender is Slider slider && slider.Tag is PriorityItemViewModel vm)
             {
                 int newPercent = (int)Math.Round(slider.Value);
-                AudioVolumeManager.Instance.SetVolumePercent(vm.Id, newPercent);
                 vm.VolumePercent = newPercent;
+                if (vm.IsConnected)
+                {
+                    AudioVolumeManager.Instance.SetVolumePercent(vm.Id, newPercent);
+                }
+                else
+                {
+                    SettingsService.Instance.SetSavedDeviceVolume(vm.Id, vm.Name, newPercent);
+                }
             }
         }
 
         private void BtnMuteDevice_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is PriorityItemViewModel vm && vm.IsConnected)
+            if (sender is Button btn && btn.Tag is PriorityItemViewModel vm)
             {
                 bool newMute = !vm.IsMuted;
-                AudioVolumeManager.Instance.SetMute(vm.Id, newMute);
                 vm.IsMuted = newMute;
+                if (vm.IsConnected)
+                {
+                    AudioVolumeManager.Instance.SetMute(vm.Id, newMute);
+                }
+                else
+                {
+                    SettingsService.Instance.SetSavedDeviceMute(vm.Id, vm.Name, newMute);
+                }
             }
         }
 

@@ -16,6 +16,7 @@ not worried about inputs for now.
 ~~->hidden/ignored devices. list to list all devices and highlight if hidden/ignored.~~ 
 
 ~~-> first time i right click on the task bar icon the menu fails to come up and requres a second try.~~
+~~-> add toast notifications when the auto-switch happens. e.g. "Switched to my speakers (USB)"~~
 
 big ideas for later.(ignore for now.)
 ->app based priority lists?

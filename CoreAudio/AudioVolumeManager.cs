@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace AudioSwitcher.CoreAudio
 {
-    public class AudioVolumeManager
+    public class AudioVolumeManager : IDisposable
     {
         private static AudioVolumeManager? _instance;
         public static AudioVolumeManager Instance => _instance ??= new AudioVolumeManager();
@@ -11,14 +14,97 @@ namespace AudioSwitcher.CoreAudio
         private readonly IMMDeviceEnumerator _enumerator;
         private static readonly Guid IID_IAudioEndpointVolume = new("5CDF2C82-841E-4546-9722-0CF74078229A");
 
+        private readonly ConcurrentDictionary<string, float> _cachedVolumes = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, bool> _cachedMutes = new(StringComparer.OrdinalIgnoreCase);
+        private readonly System.Threading.Timer _monitorTimer;
+        private int _isPolling = 0;
+
+        public event Action<string, float, bool>? VolumeChanged;
+
         public AudioVolumeManager()
         {
             _enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
+
+            // Pre-seed cache from persistent settings so unplugged devices retain volume across app restarts
+            try
+            {
+                var savedVols = Services.SettingsService.Instance.Settings.SavedDeviceVolumes;
+                if (savedVols != null)
+                {
+                    foreach (var kvp in savedVols)
+                    {
+                        _cachedVolumes[kvp.Key] = kvp.Value / 100.0f;
+                    }
+                }
+
+                var savedMutes = Services.SettingsService.Instance.Settings.SavedDeviceMutes;
+                if (savedMutes != null)
+                {
+                    foreach (var kvp in savedMutes)
+                    {
+                        _cachedMutes[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            catch { }
+
+            // Initial poll to seed live cache
+            PollActiveVolumes();
+
+            // Monitor active endpoints every 200ms for volume adjustments made outside our app
+            _monitorTimer = new System.Threading.Timer(_ =>
+            {
+                PollActiveVolumes();
+            }, null, TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200));
         }
 
-        public float GetVolume(string deviceId)
+        private void PollActiveVolumes()
         {
-            if (string.IsNullOrWhiteSpace(deviceId)) return 1.0f;
+            if (Interlocked.CompareExchange(ref _isPolling, 1, 0) != 0)
+                return;
+
+            try
+            {
+                var activeRender = AudioDeviceManager.Instance.GetDevices(EDataFlow.eRender)
+                    .Where(d => d.IsActive)
+                    .ToList();
+
+                foreach (var dev in activeRender)
+                {
+                    if (TryQueryEndpoint(dev.Id, out float currentVol, out bool currentMute))
+                    {
+                        bool hadVol = _cachedVolumes.TryGetValue(dev.Id, out float prevVol);
+                        bool hadMute = _cachedMutes.TryGetValue(dev.Id, out bool prevMute);
+
+                        _cachedVolumes[dev.Id] = currentVol;
+                        if (!string.IsNullOrEmpty(dev.Name)) _cachedVolumes[dev.Name] = currentVol;
+
+                        _cachedMutes[dev.Id] = currentMute;
+                        if (!string.IsNullOrEmpty(dev.Name)) _cachedMutes[dev.Name] = currentMute;
+
+                        int currentPercent = (int)Math.Round(currentVol * 100.0f);
+                        Services.SettingsService.Instance.SetSavedDeviceVolume(dev.Id, dev.Name, currentPercent);
+                        Services.SettingsService.Instance.SetSavedDeviceMute(dev.Id, dev.Name, currentMute);
+
+                        if (!hadVol || Math.Abs(currentVol - prevVol) > 0.005f || (hadMute && currentMute != prevMute))
+                        {
+                            VolumeChanged?.Invoke(dev.Id, currentVol, currentMute);
+                        }
+                    }
+                }
+            }
+            catch { }
+            finally
+            {
+                Interlocked.Exchange(ref _isPolling, 0);
+            }
+        }
+
+        private bool TryQueryEndpoint(string deviceId, out float volume, out bool isMuted)
+        {
+            volume = 0.5f;
+            isMuted = false;
+            if (string.IsNullOrWhiteSpace(deviceId)) return false;
 
             IMMDevice? device = null;
             try
@@ -33,9 +119,13 @@ namespace AudioSwitcher.CoreAudio
                         var endpointVolume = (IAudioEndpointVolume)Marshal.GetObjectForIUnknown(pInterface);
                         try
                         {
-                            if (endpointVolume.GetMasterVolumeLevelScalar(out float level) == 0)
+                            bool gotVol = endpointVolume.GetMasterVolumeLevelScalar(out float level) == 0;
+                            bool gotMute = endpointVolume.GetMute(out bool mute) == 0;
+                            if (gotVol)
                             {
-                                return Math.Clamp(level, 0.0f, 1.0f);
+                                volume = Math.Clamp(level, 0.0f, 1.0f);
+                                isMuted = gotMute && mute;
+                                return true;
                             }
                         }
                         finally
@@ -45,16 +135,52 @@ namespace AudioSwitcher.CoreAudio
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"GetVolume failed for {deviceId}: {ex.Message}");
-            }
+            catch { }
             finally
             {
                 if (device != null) Marshal.ReleaseComObject(device);
             }
 
-            return 1.0f;
+            return false;
+        }
+
+        public float GetVolume(string deviceId)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId)) return 0.5f;
+
+            if (TryQueryEndpoint(deviceId, out float liveVol, out bool liveMute))
+            {
+                _cachedVolumes[deviceId] = liveVol;
+                _cachedMutes[deviceId] = liveMute;
+                return liveVol;
+            }
+
+            // Fallback to cached last known volume if device was just unplugged
+            if (_cachedVolumes.TryGetValue(deviceId, out float cached))
+            {
+                return cached;
+            }
+
+            // Fallback to persisted saved volume in settings
+            int savedVol = Services.SettingsService.Instance.GetSavedDeviceVolume(deviceId, null, -1);
+            if (savedVol >= 0)
+            {
+                float volScalar = savedVol / 100.0f;
+                _cachedVolumes[deviceId] = volScalar;
+                return volScalar;
+            }
+
+            return 0.5f;
+        }
+
+        public float GetLastKnownVolume(string deviceId)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId)) return 0.5f;
+            if (_cachedVolumes.TryGetValue(deviceId, out float cached))
+            {
+                return cached;
+            }
+            return GetVolume(deviceId);
         }
 
         public bool SetVolume(string deviceId, float volume)
@@ -62,13 +188,23 @@ namespace AudioSwitcher.CoreAudio
             if (string.IsNullOrWhiteSpace(deviceId)) return false;
             volume = Math.Clamp(volume, 0.0f, 1.0f);
 
+            // Record in cache & settings immediately
+            _cachedVolumes[deviceId] = volume;
+            var dev = AudioDeviceManager.Instance.GetDeviceById(deviceId);
+            if (dev != null && !string.IsNullOrEmpty(dev.Name))
+            {
+                _cachedVolumes[dev.Name] = volume;
+            }
+
+            int percent = (int)Math.Round(volume * 100.0f);
+            Services.SettingsService.Instance.SetSavedDeviceVolume(deviceId, dev?.Name, percent);
+
             IMMDevice? device = null;
             try
             {
                 int hr = _enumerator.GetDevice(deviceId, out device);
                 if (hr != 0 || device == null)
                 {
-                    System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] GetDevice HR=0x{hr:X8}\n");
                     return false;
                 }
 
@@ -76,7 +212,6 @@ namespace AudioSwitcher.CoreAudio
                 hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pInterface);
                 if (hr != 0 || pInterface == IntPtr.Zero)
                 {
-                    System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] Activate HR=0x{hr:X8}, pInterface=0x{pInterface.ToInt64():X}\n");
                     return false;
                 }
 
@@ -84,11 +219,11 @@ namespace AudioSwitcher.CoreAudio
                 try
                 {
                     int setHr = endpointVolume.SetMasterVolumeLevelScalar(volume, IntPtr.Zero);
-                    if (setHr != 0)
+                    if (setHr == 0)
                     {
-                        System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] SetMasterVolumeLevelScalar HR=0x{setHr:X8}\n");
+                        VolumeChanged?.Invoke(deviceId, volume, GetMute(deviceId));
+                        return true;
                     }
-                    return setHr == 0;
                 }
                 finally
                 {
@@ -97,7 +232,7 @@ namespace AudioSwitcher.CoreAudio
             }
             catch (Exception ex)
             {
-                System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] EXCEPTION: {ex}\n");
+                System.Diagnostics.Debug.WriteLine($"SetVolume error: {ex.Message}");
             }
             finally
             {
@@ -123,46 +258,32 @@ namespace AudioSwitcher.CoreAudio
         {
             if (string.IsNullOrWhiteSpace(deviceId)) return false;
 
-            IMMDevice? device = null;
-            try
+            if (TryQueryEndpoint(deviceId, out _, out bool liveMute))
             {
-                int hr = _enumerator.GetDevice(deviceId, out device);
-                if (hr == 0 && device != null)
-                {
-                    var iid = IID_IAudioEndpointVolume;
-                    hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pInterface);
-                    if (hr == 0 && pInterface != IntPtr.Zero)
-                    {
-                        var endpointVolume = (IAudioEndpointVolume)Marshal.GetObjectForIUnknown(pInterface);
-                        try
-                        {
-                            if (endpointVolume.GetMute(out bool isMuted) == 0)
-                            {
-                                return isMuted;
-                            }
-                        }
-                        finally
-                        {
-                            Marshal.Release(pInterface);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"GetMute failed for {deviceId}: {ex.Message}");
-            }
-            finally
-            {
-                if (device != null) Marshal.ReleaseComObject(device);
+                _cachedMutes[deviceId] = liveMute;
+                return liveMute;
             }
 
-            return false;
+            if (_cachedMutes.TryGetValue(deviceId, out bool cachedMute))
+            {
+                return cachedMute;
+            }
+
+            return Services.SettingsService.Instance.GetSavedDeviceMute(deviceId, null, false);
         }
 
         public bool SetMute(string deviceId, bool mute)
         {
             if (string.IsNullOrWhiteSpace(deviceId)) return false;
+
+            _cachedMutes[deviceId] = mute;
+            var dev = AudioDeviceManager.Instance.GetDeviceById(deviceId);
+            if (dev != null && !string.IsNullOrEmpty(dev.Name))
+            {
+                _cachedMutes[dev.Name] = mute;
+            }
+
+            Services.SettingsService.Instance.SetSavedDeviceMute(deviceId, dev?.Name, mute);
 
             IMMDevice? device = null;
             try
@@ -178,7 +299,11 @@ namespace AudioSwitcher.CoreAudio
                         try
                         {
                             int setHr = endpointVolume.SetMute(mute, IntPtr.Zero);
-                            return setHr == 0;
+                            if (setHr == 0)
+                            {
+                                VolumeChanged?.Invoke(deviceId, GetVolume(deviceId), mute);
+                                return true;
+                            }
                         }
                         finally
                         {
@@ -197,6 +322,11 @@ namespace AudioSwitcher.CoreAudio
             }
 
             return false;
+        }
+
+        public void Dispose()
+        {
+            _monitorTimer.Dispose();
         }
     }
 }

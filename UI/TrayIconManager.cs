@@ -281,12 +281,38 @@ namespace AudioSwitcher.UI
         {
             if (SettingsService.Instance.Settings.ShowSwitchNotifications)
             {
-                _notifyIcon.ShowBalloonTip(
-                    3000,
-                    "AudioSwitcher",
-                    $"Switched {category.GetShortName()} to {device.Name}",
-                    ToolTipIcon.Info
-                );
+                string icon = category switch
+                {
+                    AudioCategory.OutputSound => "🔊",
+                    AudioCategory.OutputCommunications => "🎧",
+                    AudioCategory.InputSound => "🎤",
+                    AudioCategory.InputCommunications => "🎙️",
+                    _ => "🔊"
+                };
+
+                bool isOverride = PrioritySwitcherService.Instance.HasTemporaryOverride(category);
+                string title = isOverride ? "⚡ Temporary Override" : $"Switched {category.GetShortName()}";
+                string message = $"Switched to {device.Name}";
+
+                string? volBadge = null;
+                if (category.GetDataFlow() == EDataFlow.eRender)
+                {
+                    int vol = AudioVolumeManager.Instance.GetVolumePercent(device.Id);
+                    volBadge = $"{vol}%";
+                }
+
+                ToastNotificationWindow.ShowToast(title, message, icon, volBadge, isOverride);
+
+                try
+                {
+                    _notifyIcon.ShowBalloonTip(
+                        3000,
+                        "AudioSwitcher",
+                        $"{title}: {device.Name}",
+                        ToolTipIcon.Info
+                    );
+                }
+                catch { }
             }
         }
 
