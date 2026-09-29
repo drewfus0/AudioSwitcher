@@ -56,6 +56,7 @@ namespace AudioSwitcher.UI
             ChkOptStartWithWindows.IsChecked = StartupService.IsStartupEnabled();
             ChkOptStartMinimized.IsChecked = settings.StartMinimized;
             ChkOptCloseToTray.IsChecked = settings.CloseToTray;
+            ChkOptVolumeMapping.IsChecked = settings.EnableVolumeMappingOnSwitch;
 
             // Register events
             AudioDeviceManager.Instance.DevicesUpdated += OnDevicesUpdated;
@@ -222,6 +223,7 @@ namespace AudioSwitcher.UI
             settings.ShowSwitchNotifications = ChkOptShowNotifications.IsChecked == true;
             settings.StartMinimized = ChkOptStartMinimized.IsChecked == true;
             settings.CloseToTray = ChkOptCloseToTray.IsChecked == true;
+            settings.EnableVolumeMappingOnSwitch = ChkOptVolumeMapping.IsChecked == true;
 
             bool prevMatchOut = settings.MatchOutputCommsToSound;
             bool prevMatchIn = settings.MatchInputCommsToSound;
@@ -241,6 +243,19 @@ namespace AudioSwitcher.UI
             {
                 PrioritySwitcherService.Instance.EvaluateAllPriorities();
             }
+        }
+
+        private void BtnOpenVolumeCalibration_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new VolumeCalibrationWindow
+            {
+                Owner = this
+            };
+            win.ShowDialog();
+            CtrlOutputSound.ReloadData();
+            CtrlOutputComms.ReloadData();
+            CtrlInputSound.ReloadData();
+            CtrlInputComms.ReloadData();
         }
 
         private void BtnRescanDevices_Click(object sender, RoutedEventArgs e)

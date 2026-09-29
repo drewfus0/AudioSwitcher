@@ -42,6 +42,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="BtnOpenCalibrationLabHeader" Content="🔊 Calibrate Volumes" Style="{DynamicResource SmallBtnStyle}" Margin="0,0,12,0" Padding="10,5" Click="BtnOpenCalibrationLab_Click" ToolTip="Open the interactive Volume Calibration Lab to balance loudness across devices" />
                         <CheckBox x:Name="ChkMatchSound" Content="🔗 Match Sound" VerticalAlignment="Center" Foreground="#93C5FD" FontSize="12" FontWeight="SemiBold" Margin="0,0,16,0" Checked="ChkMatchSound_Changed" Unchecked="ChkMatchSound_Changed" Cursor="Hand" Visibility="Collapsed" ToolTip="Automatically use the same device and priority list as Sound" />
                         <TextBlock Text="Auto-Switch" VerticalAlignment="Center" Foreground="#D4D4D8" FontSize="13" Margin="0,0,10,0" />
                         <CheckBox x:Name="ChkAutoSwitch" IsChecked="True" VerticalAlignment="Center" Checked="ChkAutoSwitch_Changed" Unchecked="ChkAutoSwitch_Changed" Cursor="Hand" />
@@ -160,7 +161,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <!-- Indicator Stripe, Drag Handle & Rank Badge -->
                                                 <ColumnDefinition Width="Auto" />
-                                                <!-- Device Info & Badges -->
+                                                <!-- Device Info, Badges & Volume Slider -->
                                                 <ColumnDefinition Width="*" />
                                                 <!-- Action Buttons -->
                                                 <ColumnDefinition Width="Auto" />
@@ -182,7 +183,7 @@
                                                 </Border>
                                             </StackPanel>
 
-                                            <!-- Middle Group: Device Title & Status -->
+                                            <!-- Middle Group: Device Title, Badges, Status & Volume -->
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
                                                 <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                     <!-- Device Name -->
@@ -232,10 +233,36 @@
                                                     </Border>
                                                 </WrapPanel>
 
-                                                <!-- Status dot & text -->
-                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <!-- Status line and Volume Controls -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
+                                                    <!-- Status dot & text -->
                                                     <Ellipse Width="7" Height="7" Fill="{Binding StatusDotBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                                    <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{Binding StatusDotForeground}" />
+                                                    <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{Binding StatusDotForeground}" VerticalAlignment="Center" Margin="0,0,12,0" />
+
+                                                    <!-- Per-Device Volume Control Bar -->
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Visibility="{Binding HasVolumeControl, Converter={StaticResource BoolToVis}}">
+                                                        <!-- Mute Button -->
+                                                        <Button Content="{Binding MuteIcon}"
+                                                                Width="22" Height="20" FontSize="10"
+                                                                Style="{DynamicResource IconBtnStyle}"
+                                                                Click="BtnMuteDevice_Click"
+                                                                Tag="{Binding}"
+                                                                Margin="0,0,4,0"
+                                                                ToolTip="Toggle Device Mute" />
+
+                                                        <!-- Volume Slider -->
+                                                        <Slider Width="95" Height="18"
+                                                                Minimum="0" Maximum="100"
+                                                                Value="{Binding VolumePercent, Mode=TwoWay}"
+                                                                ValueChanged="DeviceVolumeSlider_ValueChanged"
+                                                                Tag="{Binding}"
+                                                                VerticalAlignment="Center"
+                                                                Margin="0,0,6,0"
+                                                                Cursor="Hand" />
+
+                                                        <!-- Volume Readout -->
+                                                        <TextBlock Text="{Binding VolumeText}" FontSize="10.5" FontWeight="Bold" Foreground="#60A5FA" VerticalAlignment="Center" MinWidth="30" />
+                                                    </StackPanel>
                                                 </StackPanel>
                                             </StackPanel>
 

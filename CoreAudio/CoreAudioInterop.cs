@@ -141,6 +141,81 @@ namespace AudioSwitcher.CoreAudio
     [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
     internal class MMDeviceEnumeratorComObject { }
 
+    #region Audio Endpoint Volume Interface
+
+    [Guid("5BC63904-734E-40E0-863A-B690174A3F43"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IAudioEndpointVolume
+    {
+        [PreserveSig] int RegisterControlChangeNotify(IntPtr pNotify);
+        [PreserveSig] int UnregisterControlChangeNotify(IntPtr pNotify);
+        [PreserveSig] int GetChannelCount(out uint pnChannelCount);
+        [PreserveSig] int SetMasterVolumeLevel(float fLevelDB, ref Guid pguidEventContext);
+        [PreserveSig] int SetMasterVolumeLevelScalar(float fLevel, ref Guid pguidEventContext);
+        [PreserveSig] int GetMasterVolumeLevel(out float pfLevelDB);
+        [PreserveSig] int GetMasterVolumeLevelScalar(out float pfLevel);
+        [PreserveSig] int SetChannelVolumeLevel(uint nChannel, float fLevelDB, ref Guid pguidEventContext);
+        [PreserveSig] int SetChannelVolumeLevelScalar(uint nChannel, float fLevel, ref Guid pguidEventContext);
+        [PreserveSig] int GetChannelVolumeLevel(uint nChannel, out float pfLevelDB);
+        [PreserveSig] int GetChannelVolumeLevelScalar(uint nChannel, out float pfLevel);
+        [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, ref Guid pguidEventContext);
+        [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool pbMute);
+        [PreserveSig] int GetVolumeStepInfo(out uint pnStep, out uint pnStepCount);
+        [PreserveSig] int VolumeStepUp(ref Guid pguidEventContext);
+        [PreserveSig] int VolumeStepDown(ref Guid pguidEventContext);
+        [PreserveSig] int QueryHardwareSupport(out uint pdwHardwareSupportMask);
+        [PreserveSig] int GetVolumeRange(out float pflVolumeMindB, out float pflVolumeMaxdB, out float pflVolumeIncrementdB);
+    }
+
+    #endregion
+
+    #region WASAPI Audio Client & Playback
+
+    public enum AUDCLNT_SHAREMODE
+    {
+        AUDCLNT_SHAREMODE_SHARED = 0,
+        AUDCLNT_SHAREMODE_EXCLUSIVE = 1
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 2)]
+    public struct WAVEFORMATEX
+    {
+        public ushort wFormatTag;
+        public ushort nChannels;
+        public uint nSamplesPerSec;
+        public uint nAvgBytesPerSec;
+        public ushort nBlockAlign;
+        public ushort wBitsPerSample;
+        public ushort cbSize;
+    }
+
+    [Guid("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IAudioClient
+    {
+        [PreserveSig] int Initialize(AUDCLNT_SHAREMODE ShareMode, uint StreamFlags, long hnsBufferDuration, long hnsPeriodicity, [In] IntPtr pFormat, ref Guid AudioSessionGuid);
+        [PreserveSig] int GetBufferSize(out uint pNumBufferFrames);
+        [PreserveSig] int GetStreamLatency(out long phnsLatency);
+        [PreserveSig] int GetCurrentPadding(out uint pNumPaddingFrames);
+        [PreserveSig] int IsFormatSupported(AUDCLNT_SHAREMODE ShareMode, [In] IntPtr pFormat, out IntPtr ppClosestMatch);
+        [PreserveSig] int GetMixFormat(out IntPtr ppDeviceFormat);
+        [PreserveSig] int GetDevicePeriod(out long phnsDefaultDevicePeriod, out long phnsMinimumDevicePeriod);
+        [PreserveSig] int Start();
+        [PreserveSig] int Stop();
+        [PreserveSig] int Reset();
+        [PreserveSig] int SetEventHandle(IntPtr eventHandle);
+        [PreserveSig] int GetService(ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] out object ppv);
+    }
+
+    [Guid("F2942F23-8861-4721-8A6D-05505F4E6189"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IAudioRenderClient
+    {
+        [PreserveSig] int GetBuffer(uint NumFramesRequested, out IntPtr ppData);
+        [PreserveSig] int ReleaseBuffer(uint NumFramesWritten, uint dwFlags);
+    }
+
+    #endregion
+
+    #region PolicyConfig Client
+
     [Guid("f8679f50-850a-41cf-9c72-430f290290c8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal interface IPolicyConfig
     {
@@ -235,4 +310,6 @@ namespace AudioSwitcher.CoreAudio
             throw new PlatformNotSupportedException("No supported IPolicyConfig COM interface found on this system.");
         }
     }
+
+    #endregion
 }

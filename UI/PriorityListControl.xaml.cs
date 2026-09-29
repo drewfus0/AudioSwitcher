@@ -153,11 +153,15 @@ namespace AudioSwitcher.UI
 
                     int currentRank = rank++;
 
-                    // Apply search filter if present
-                    if (!string.IsNullOrEmpty(filter) &&
-                        !p.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                    // Query volume status if connected and render
+                    int volPercent = 100;
+                    bool isMuted = false;
+                    bool hasVolumeControl = isConnected && _category.GetDataFlow() == EDataFlow.eRender;
+
+                    if (isConnected && dev != null)
                     {
-                        continue;
+                        volPercent = AudioVolumeManager.Instance.GetVolumePercent(dev.Id);
+                        isMuted = AudioVolumeManager.Instance.GetMute(dev.Id);
                     }
 
                     _items.Add(new PriorityItemViewModel
@@ -169,7 +173,10 @@ namespace AudioSwitcher.UI
                         StatusText = isConnected ? "Connected" : (dev != null ? dev.StatusText : "Offline / Unplugged"),
                         IsCurrentDefault = isDefault,
                         IsTemporaryOverride = isThisTempOverride,
-                        OtherCategoryBadge = otherBadge
+                        OtherCategoryBadge = otherBadge,
+                        VolumePercent = volPercent,
+                        IsMuted = isMuted,
+                        HasVolumeControl = hasVolumeControl
                     });
                 }
 
@@ -606,6 +613,37 @@ namespace AudioSwitcher.UI
             bool mirrored = ChkMatchSound.IsChecked == true;
             SettingsService.Instance.SetCategoryMirrored(_category, mirrored);
             PrioritySwitcherService.Instance.EvaluateAllPriorities();
+            ReloadData();
+        }
+
+        private void DeviceVolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_isUpdatingUi) return;
+            if (sender is Slider slider && slider.Tag is PriorityItemViewModel vm && vm.IsConnected)
+            {
+                int newPercent = (int)Math.Round(slider.Value);
+                AudioVolumeManager.Instance.SetVolumePercent(vm.Id, newPercent);
+                vm.VolumePercent = newPercent;
+            }
+        }
+
+        private void BtnMuteDevice_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is PriorityItemViewModel vm && vm.IsConnected)
+            {
+                bool newMute = !vm.IsMuted;
+                AudioVolumeManager.Instance.SetMute(vm.Id, newMute);
+                vm.IsMuted = newMute;
+            }
+        }
+
+        private void BtnOpenCalibrationLab_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new VolumeCalibrationWindow
+            {
+                Owner = Window.GetWindow(this)
+            };
+            win.ShowDialog();
             ReloadData();
         }
 

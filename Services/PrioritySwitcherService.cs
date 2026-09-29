@@ -63,6 +63,9 @@ namespace AudioSwitcher.Services
 
         public void SetTemporaryOverride(AudioCategory category, string deviceId)
         {
+            // Apply volume mapping from current default if applicable
+            ApplyVolumeMappingIfEnabled(category, deviceId);
+
             lock (_overrideLock)
             {
                 _temporaryOverrides[category] = deviceId;
@@ -192,6 +195,7 @@ namespace AudioSwitcher.Services
                     // Override device is connected and valid: retain as default
                     if (!overrideDev.IsDefault(category))
                     {
+                        ApplyVolumeMappingIfEnabled(category, overrideDev.Id);
                         bool success = _deviceManager.SetDefaultDevice(overrideDev.Id, category);
                         if (success)
                         {
@@ -243,11 +247,41 @@ namespace AudioSwitcher.Services
             bool isAlreadyDefault = targetDevice.IsDefault(category);
             if (!isAlreadyDefault)
             {
+                ApplyVolumeMappingIfEnabled(category, targetDevice.Id);
                 bool success = _deviceManager.SetDefaultDevice(targetDevice.Id, category);
                 if (success)
                 {
                     DeviceAutoSwitched?.Invoke(category, targetDevice);
                 }
+            }
+        }
+
+        private void ApplyVolumeMappingIfEnabled(AudioCategory category, string targetDeviceId)
+        {
+            if (!_settingsService.Settings.EnableVolumeMappingOnSwitch)
+                return;
+
+            if (category.GetDataFlow() != EDataFlow.eRender)
+                return;
+
+            try
+            {
+                var currentDefault = _deviceManager.GetDefaultDevice(category);
+                if (currentDefault != null && !string.Equals(currentDefault.Id, targetDeviceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    var targetDev = _deviceManager.GetDeviceById(targetDeviceId);
+                    float currentVol = AudioVolumeManager.Instance.GetVolume(currentDefault.Id);
+                    double mappedVol = VolumeMappingService.Instance.MapVolumeBetweenDevices(
+                        currentDefault.Id, currentDefault.Name,
+                        targetDeviceId, targetDev?.Name ?? targetDeviceId,
+                        currentVol);
+
+                    AudioVolumeManager.Instance.SetVolume(targetDeviceId, (float)mappedVol);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Volume mapping calculation error: {ex.Message}");
             }
         }
     }

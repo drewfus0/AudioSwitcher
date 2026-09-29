@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using AudioSwitcher.CoreAudio;
 
@@ -34,6 +35,44 @@ namespace AudioSwitcher.Services
         }
     }
 
+    public class VolumeCalibrationPoint
+    {
+        public double RefVolume { get; set; }     // 0.0 to 1.0 (Master/Reference loudness)
+        public double TargetVolume { get; set; }  // 0.0 to 1.0 (Hardware volume on this device)
+
+        public VolumeCalibrationPoint() { }
+
+        public VolumeCalibrationPoint(double refVolume, double targetVolume)
+        {
+            RefVolume = Math.Clamp(refVolume, 0.0, 1.0);
+            TargetVolume = Math.Clamp(targetVolume, 0.0, 1.0);
+        }
+    }
+
+    public class DeviceVolumeProfile
+    {
+        public string DeviceId { get; set; } = string.Empty;
+        public string DeviceName { get; set; } = string.Empty;
+        public List<VolumeCalibrationPoint> Points { get; set; } = new();
+
+        public DeviceVolumeProfile() { }
+
+        public DeviceVolumeProfile(string deviceId, string deviceName)
+        {
+            DeviceId = deviceId;
+            DeviceName = deviceName;
+            // Default 1:1 linear curve with 3 calibration points
+            Points = new List<VolumeCalibrationPoint>
+            {
+                new(0.0, 0.0),
+                new(0.25, 0.25),
+                new(0.50, 0.50),
+                new(0.75, 0.75),
+                new(1.0, 1.0)
+            };
+        }
+    }
+
     public class AppSettings
     {
         public List<PriorityDeviceEntry> OutputSoundPriorities { get; set; } = new();
@@ -56,6 +95,11 @@ namespace AudioSwitcher.Services
         public bool StartWithWindows { get; set; } = false;
         public bool StartMinimized { get; set; } = true;
         public bool CloseToTray { get; set; } = true;
+
+        // Volume Mapping & Normalization
+        public bool EnableVolumeMappingOnSwitch { get; set; } = true;
+        public string ReferenceDeviceId { get; set; } = string.Empty;
+        public List<DeviceVolumeProfile> VolumeProfiles { get; set; } = new();
     }
 
     public class SettingsService
@@ -197,6 +241,37 @@ namespace AudioSwitcher.Services
                     (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(p.Id) && string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase)) ||
                     (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(p.Name) && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)));
             }
+        }
+
+        public DeviceVolumeProfile GetOrCreateVolumeProfile(string deviceId, string deviceName)
+        {
+            var existing = Settings.VolumeProfiles.FirstOrDefault(p =>
+                (!string.IsNullOrEmpty(deviceId) && string.Equals(p.DeviceId, deviceId, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(deviceName) && string.Equals(p.DeviceName, deviceName, StringComparison.OrdinalIgnoreCase)));
+
+            if (existing != null) return existing;
+
+            var created = new DeviceVolumeProfile(deviceId, deviceName);
+            Settings.VolumeProfiles.Add(created);
+            Save();
+            return created;
+        }
+
+        public void SaveVolumeProfile(DeviceVolumeProfile profile)
+        {
+            var existingIndex = Settings.VolumeProfiles.FindIndex(p =>
+                (!string.IsNullOrEmpty(profile.DeviceId) && string.Equals(p.DeviceId, profile.DeviceId, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(profile.DeviceName) && string.Equals(p.DeviceName, profile.DeviceName, StringComparison.OrdinalIgnoreCase)));
+
+            if (existingIndex >= 0)
+            {
+                Settings.VolumeProfiles[existingIndex] = profile;
+            }
+            else
+            {
+                Settings.VolumeProfiles.Add(profile);
+            }
+            Save();
         }
 
         public void Save()

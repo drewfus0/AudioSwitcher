@@ -7,15 +7,13 @@
         mc:Ignorable="d"
         Title="AudioSwitcher - Audio Device Priority Manager" 
         Icon="pack://application:,,,/Assets/app.ico"
-        Height="620" Width="760" 
-        MinHeight="520" MinWidth="660"
+        Height="640" Width="780" 
+        MinHeight="540" MinWidth="680"
         WindowStartupLocation="CenterScreen"
         Background="#121216" Foreground="#F4F4F5"
         FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
         Closing="Window_Closing"
         StateChanged="Window_StateChanged">
-
-
 
     <Grid>
         <Grid.RowDefinitions>
@@ -51,9 +49,11 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Global Auto-Switch Toggle & Controls -->
+                <!-- Header Controls -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#24242C" CornerRadius="8" Padding="12,6" Margin="0,0,12,0" BorderBrush="#32323D" BorderThickness="1">
+                    <Button Content="🔊 Calibrate Volume" Style="{DynamicResource SmallBtnStyle}" Margin="0,0,10,0" Click="BtnOpenVolumeCalibration_Click" ToolTip="Open Volume Calibration Lab to match loudness between devices" />
+
+                    <Border Background="#24242C" CornerRadius="8" Padding="12,6" Margin="0,0,10,0" BorderBrush="#32323D" BorderThickness="1">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Master Auto-Switch" VerticalAlignment="Center" Foreground="#E4E4E7" FontSize="12" FontWeight="Medium" Margin="0,0,8,0" />
                             <CheckBox x:Name="ChkMasterAutoSwitch" IsChecked="True" VerticalAlignment="Center" Checked="ChkMasterAutoSwitch_Changed" Unchecked="ChkMasterAutoSwitch_Changed" Cursor="Hand" />
@@ -103,6 +103,18 @@
                                 <TextBlock Text="Automatic Switching Behavior" FontSize="14" FontWeight="SemiBold" Foreground="#60A5FA" Margin="0,0,0,10" />
 
                                 <CheckBox x:Name="ChkOptShowNotifications" Content="Show tray notification balloon when switching devices" Foreground="#E4E4E7" FontSize="13" Margin="0,6" Checked="SettingsOption_Changed" Unchecked="SettingsOption_Changed" Cursor="Hand" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Volume Mapping & Normalization Card -->
+                        <Border Background="#1E1E24" CornerRadius="10" Padding="18,14" Margin="0,0,0,14" BorderBrush="#2E2E38" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="🔊 Volume Mapping &amp; Loudness Normalization" FontSize="14" FontWeight="SemiBold" Foreground="#60A5FA" Margin="0,0,0,8" />
+                                <TextBlock Text="Automatically scale volume when switching devices so audio loudness stays matched across sensitive earphones and quiet speakers." FontSize="12" Foreground="#9CA3AF" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+                                <CheckBox x:Name="ChkOptVolumeMapping" Content="Enable Volume Mapping on Device Switch" Foreground="#E4E4E7" FontSize="13" Margin="0,6" Checked="SettingsOption_Changed" Unchecked="SettingsOption_Changed" Cursor="Hand" />
+
+                                <Button Content="🔊 Open Volume Calibration Lab &amp; Matcher" Style="{DynamicResource PrimaryBtnStyle}" Height="34" Width="330" HorizontalAlignment="Left" Margin="0,8,0,0" Click="BtnOpenVolumeCalibration_Click" />
                             </StackPanel>
                         </Border>
 

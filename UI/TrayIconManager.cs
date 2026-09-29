@@ -30,6 +30,30 @@ namespace AudioSwitcher.UI
         public override Color CheckPressedBackground => Color.FromArgb(29, 78, 216);
     }
 
+    public class DarkMenuRenderer : ToolStripProfessionalRenderer
+    {
+        public DarkMenuRenderer() : base(new DarkColorTable()) { }
+
+        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            var rect = new Rectangle(e.ImageRectangle.X + 1, e.ImageRectangle.Y + 1, e.ImageRectangle.Width - 2, e.ImageRectangle.Height - 2);
+            using var brush = new SolidBrush(Color.FromArgb(37, 99, 235));
+            using var borderPen = new Pen(Color.FromArgb(96, 165, 250), 1f);
+
+            g.FillRectangle(brush, rect);
+            g.DrawRectangle(borderPen, rect);
+
+            using var checkPen = new Pen(Color.White, 2f);
+            var p1 = new PointF(rect.X + 3.5f, rect.Y + rect.Height * 0.5f);
+            var p2 = new PointF(rect.X + rect.Width * 0.42f, rect.Bottom - 4f);
+            var p3 = new PointF(rect.Right - 3.5f, rect.Y + 4f);
+            g.DrawLines(checkPen, new[] { p1, p2, p3 });
+        }
+    }
+
     public class TrayIconManager : IDisposable
     {
         private readonly NotifyIcon _notifyIcon;
@@ -39,7 +63,8 @@ namespace AudioSwitcher.UI
         {
             _contextMenu = new ContextMenuStrip
             {
-                Renderer = new ToolStripProfessionalRenderer(new DarkColorTable()),
+                Renderer = new DarkMenuRenderer(),
+                ShowCheckMargin = true,
                 ShowImageMargin = false,
                 ForeColor = Color.FromArgb(244, 244, 245),
                 BackColor = Color.FromArgb(30, 30, 38),
@@ -123,18 +148,22 @@ namespace AudioSwitcher.UI
                 _contextMenu.Items.Add(new ToolStripSeparator());
             }
 
-            // 5. Master Auto-Switch toggle
-            var autoSwitchItem = new ToolStripMenuItem("Auto-Switch Enabled")
+            // 5. Master Auto-Switch toggle with dynamic visual text and color
+            bool isAutoSwitchOn = SettingsService.Instance.Settings.AutoSwitchEnabled;
+            var autoSwitchItem = new ToolStripMenuItem(isAutoSwitchOn ? "Auto-Switch: ON (Active)" : "Auto-Switch: OFF (Paused)")
             {
-                Checked = SettingsService.Instance.Settings.AutoSwitchEnabled,
+                Checked = isAutoSwitchOn,
                 CheckOnClick = true,
-                ForeColor = Color.FromArgb(228, 228, 231)
+                ForeColor = isAutoSwitchOn ? Color.FromArgb(74, 222, 128) : Color.FromArgb(161, 161, 170)
             };
             autoSwitchItem.Click += (s, e) =>
             {
-                SettingsService.Instance.Settings.AutoSwitchEnabled = autoSwitchItem.Checked;
+                bool enabled = autoSwitchItem.Checked;
+                SettingsService.Instance.Settings.AutoSwitchEnabled = enabled;
                 SettingsService.Instance.Save();
-                if (autoSwitchItem.Checked)
+                autoSwitchItem.Text = enabled ? "Auto-Switch: ON (Active)" : "Auto-Switch: OFF (Paused)";
+                autoSwitchItem.ForeColor = enabled ? Color.FromArgb(74, 222, 128) : Color.FromArgb(161, 161, 170);
+                if (enabled)
                 {
                     PrioritySwitcherService.Instance.EvaluateAllPriorities();
                 }
@@ -174,6 +203,8 @@ namespace AudioSwitcher.UI
 
             if (menu.DropDown is ToolStripDropDownMenu dropDownMenu)
             {
+                dropDownMenu.Renderer = new DarkMenuRenderer();
+                dropDownMenu.ShowCheckMargin = true;
                 dropDownMenu.ShowImageMargin = false;
                 dropDownMenu.BackColor = Color.FromArgb(30, 30, 38);
                 dropDownMenu.ForeColor = Color.FromArgb(244, 244, 245);
@@ -202,13 +233,13 @@ namespace AudioSwitcher.UI
                 string label = device.Name;
                 if (isTempOverride)
                 {
-                    label = $"⚡ {device.Name} (Temp Active)";
+                    label = $"{device.Name} (⚡ Temp Active)";
                 }
 
                 var item = new ToolStripMenuItem(label)
                 {
                     Checked = isDefault,
-                    ForeColor = isDefault ? Color.FromArgb(96, 165, 250) : Color.FromArgb(244, 244, 245)
+                    ForeColor = isTempOverride ? Color.FromArgb(251, 191, 36) : (isDefault ? Color.FromArgb(96, 165, 250) : Color.FromArgb(244, 244, 245))
                 };
 
                 string deviceId = device.Id;

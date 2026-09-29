@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
@@ -17,6 +18,9 @@ namespace AudioSwitcher.UI
         private bool _isCurrentDefault;
         private bool _isTemporaryOverride;
         private string _otherCategoryBadge = string.Empty;
+        private int _volumePercent = 100;
+        private bool _isMuted = false;
+        private bool _hasVolumeControl = false;
 
         public int Rank
         {
@@ -128,6 +132,53 @@ namespace AudioSwitcher.UI
         public bool HasOtherCategoryBadge => !string.IsNullOrWhiteSpace(OtherCategoryBadge);
 
         public bool CanTempSwitch => IsConnected && !IsCurrentDefault;
+
+        // Volume properties
+        public int VolumePercent
+        {
+            get => _volumePercent;
+            set
+            {
+                int clamped = Math.Clamp(value, 0, 100);
+                if (_volumePercent != clamped)
+                {
+                    _volumePercent = clamped;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(VolumeText));
+                }
+            }
+        }
+
+        public string VolumeText => $"{VolumePercent}%";
+
+        public bool IsMuted
+        {
+            get => _isMuted;
+            set
+            {
+                if (_isMuted != value)
+                {
+                    _isMuted = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(MuteIcon));
+                }
+            }
+        }
+
+        public string MuteIcon => IsMuted ? "🔇" : "🔊";
+
+        public bool HasVolumeControl
+        {
+            get => _hasVolumeControl && _isConnected;
+            set
+            {
+                if (_hasVolumeControl != value)
+                {
+                    _hasVolumeControl = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         // Visual distinction styling properties
 
