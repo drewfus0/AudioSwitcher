@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +16,12 @@ namespace AudioSwitcher.Services
         private readonly SettingsService _settingsService;
         private int _isEvaluating = 0;
 
+        // Temporary overrides per category (category -> deviceId)
+        private readonly Dictionary<AudioCategory, string> _temporaryOverrides = new();
+        private readonly object _overrideLock = new();
+
         public event Action<AudioCategory, AudioDevice>? DeviceAutoSwitched;
+        public event Action<AudioCategory, string?>? TemporaryOverrideChanged;
 
         public PrioritySwitcherService()
         {
@@ -36,6 +42,102 @@ namespace AudioSwitcher.Services
 
         private void OnSettingsChanged()
         {
+            EvaluateAllPriorities();
+        }
+
+        public bool HasTemporaryOverride(AudioCategory category)
+        {
+            lock (_overrideLock)
+            {
+                return _temporaryOverrides.ContainsKey(category);
+            }
+        }
+
+        public string? GetTemporaryOverride(AudioCategory category)
+        {
+            lock (_overrideLock)
+            {
+                return _temporaryOverrides.TryGetValue(category, out var id) ? id : null;
+            }
+        }
+
+        public void SetTemporaryOverride(AudioCategory category, string deviceId)
+        {
+            lock (_overrideLock)
+            {
+                _temporaryOverrides[category] = deviceId;
+                if (_settingsService.IsCategoryMirrored(category))
+                {
+                    if (category == AudioCategory.OutputSound)
+                        _temporaryOverrides[AudioCategory.OutputCommunications] = deviceId;
+                    else if (category == AudioCategory.InputSound)
+                        _temporaryOverrides[AudioCategory.InputCommunications] = deviceId;
+                }
+            }
+
+            _deviceManager.SetDefaultDevice(deviceId, category);
+            TemporaryOverrideChanged?.Invoke(category, deviceId);
+            if (_settingsService.IsCategoryMirrored(category))
+            {
+                if (category == AudioCategory.OutputSound)
+                    TemporaryOverrideChanged?.Invoke(AudioCategory.OutputCommunications, deviceId);
+                else if (category == AudioCategory.InputSound)
+                    TemporaryOverrideChanged?.Invoke(AudioCategory.InputCommunications, deviceId);
+            }
+        }
+
+        public void ClearTemporaryOverride(AudioCategory category)
+        {
+            bool removed = false;
+            lock (_overrideLock)
+            {
+                if (_temporaryOverrides.Remove(category))
+                {
+                    removed = true;
+                }
+                if (_settingsService.IsCategoryMirrored(category))
+                {
+                    if (category == AudioCategory.OutputSound && _temporaryOverrides.Remove(AudioCategory.OutputCommunications))
+                        removed = true;
+                    else if (category == AudioCategory.InputSound && _temporaryOverrides.Remove(AudioCategory.InputCommunications))
+                        removed = true;
+                }
+            }
+
+            if (removed)
+            {
+                TemporaryOverrideChanged?.Invoke(category, null);
+                if (_settingsService.IsCategoryMirrored(category))
+                {
+                    if (category == AudioCategory.OutputSound)
+                        TemporaryOverrideChanged?.Invoke(AudioCategory.OutputCommunications, null);
+                    else if (category == AudioCategory.InputSound)
+                        TemporaryOverrideChanged?.Invoke(AudioCategory.InputCommunications, null);
+                }
+
+                EvaluateCategory(category);
+                if (_settingsService.IsCategoryMirrored(category))
+                {
+                    if (category == AudioCategory.OutputSound)
+                        EvaluateCategory(AudioCategory.OutputCommunications);
+                    else if (category == AudioCategory.InputSound)
+                        EvaluateCategory(AudioCategory.InputCommunications);
+                }
+            }
+        }
+
+        public void ClearAllTemporaryOverrides()
+        {
+            lock (_overrideLock)
+            {
+                _temporaryOverrides.Clear();
+            }
+
+            TemporaryOverrideChanged?.Invoke(AudioCategory.OutputSound, null);
+            TemporaryOverrideChanged?.Invoke(AudioCategory.OutputCommunications, null);
+            TemporaryOverrideChanged?.Invoke(AudioCategory.InputSound, null);
+            TemporaryOverrideChanged?.Invoke(AudioCategory.InputCommunications, null);
+
             EvaluateAllPriorities();
         }
 
@@ -65,16 +167,52 @@ namespace AudioSwitcher.Services
             if (!_settingsService.IsCategoryAutoSwitchEnabled(category))
                 return;
 
-            var priorities = _settingsService.GetPriorities(category);
-            if (priorities.Count == 0)
-                return;
-
             var flow = category.GetDataFlow();
             var activeDevices = _deviceManager.GetDevices(flow)
                 .Where(d => d.IsActive && !_settingsService.IsDeviceIgnored(d.Id, d.Name))
                 .ToList();
 
             if (activeDevices.Count == 0)
+                return;
+
+            // Check if temporary override is active for this category
+            string? overrideDeviceId = null;
+            lock (_overrideLock)
+            {
+                _temporaryOverrides.TryGetValue(category, out overrideDeviceId);
+            }
+
+            if (!string.IsNullOrEmpty(overrideDeviceId))
+            {
+                var overrideDev = activeDevices.FirstOrDefault(d => string.Equals(d.Id, overrideDeviceId, StringComparison.OrdinalIgnoreCase))
+                               ?? activeDevices.FirstOrDefault(d => string.Equals(d.Name, overrideDeviceId, StringComparison.OrdinalIgnoreCase));
+
+                if (overrideDev != null)
+                {
+                    // Override device is connected and valid: retain as default
+                    if (!overrideDev.IsDefault(category))
+                    {
+                        bool success = _deviceManager.SetDefaultDevice(overrideDev.Id, category);
+                        if (success)
+                        {
+                            DeviceAutoSwitched?.Invoke(category, overrideDev);
+                        }
+                    }
+                    return;
+                }
+                else
+                {
+                    // The temporary override device was disconnected/unplugged! Automatically clear override
+                    lock (_overrideLock)
+                    {
+                        _temporaryOverrides.Remove(category);
+                    }
+                    TemporaryOverrideChanged?.Invoke(category, null);
+                }
+            }
+
+            var priorities = _settingsService.GetPriorities(category);
+            if (priorities.Count == 0)
                 return;
 
             // Find highest priority available device

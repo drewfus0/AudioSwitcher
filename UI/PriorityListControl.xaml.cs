@@ -4,16 +4,25 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using AudioSwitcher.CoreAudio;
 using AudioSwitcher.Services;
+using WpfPoint = System.Windows.Point;
+using WpfVector = System.Windows.Vector;
 
 namespace AudioSwitcher.UI
 {
-    public partial class PriorityListControl : System.Windows.Controls.UserControl
+    public partial class PriorityListControl : UserControl
     {
         private AudioCategory _category;
         private readonly ObservableCollection<PriorityItemViewModel> _items = new();
         private bool _isUpdatingUi = false;
+
+        // Drag & Drop State
+        private WpfPoint _dragStartPoint;
+        private PriorityItemViewModel? _draggedItem;
+        private bool _isDragging = false;
 
         public AudioCategory Category => _category;
 
@@ -77,9 +86,37 @@ namespace AudioSwitcher.UI
                     _isUpdatingUi = false;
                 }
 
+                // Check Temporary Override for this category
+                string? tempOverrideId = PrioritySwitcherService.Instance.GetTemporaryOverride(_category);
+                bool hasTempOverride = !string.IsNullOrEmpty(tempOverrideId);
+
                 var priorities = SettingsService.Instance.GetPriorities(_category);
                 var devices = AudioDeviceManager.Instance.GetDevices(_category.GetDataFlow());
                 string filter = TxtSearchFilter?.Text?.Trim() ?? string.Empty;
+
+                if (hasTempOverride)
+                {
+                    var tempDev = devices.FirstOrDefault(d => string.Equals(d.Id, tempOverrideId, StringComparison.OrdinalIgnoreCase))
+                               ?? devices.FirstOrDefault(d => string.Equals(d.Name, tempOverrideId, StringComparison.OrdinalIgnoreCase));
+                    string tempName = tempDev?.Name ?? "Selected Device";
+                    TxtTempOverrideDetails.Text = $"Using \"{tempName}\". Priority auto-switching is paused until cleared or disconnected.";
+                    BannerTempOverride.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    BannerTempOverride.Visibility = Visibility.Collapsed;
+                }
+
+                // Cross-category default checking
+                AudioCategory otherCat = _category switch
+                {
+                    AudioCategory.OutputSound => AudioCategory.OutputCommunications,
+                    AudioCategory.OutputCommunications => AudioCategory.OutputSound,
+                    AudioCategory.InputSound => AudioCategory.InputCommunications,
+                    AudioCategory.InputCommunications => AudioCategory.InputSound,
+                    _ => _category
+                };
+                var otherDefaultDev = AudioDeviceManager.Instance.GetDefaultDevice(otherCat);
 
                 _items.Clear();
                 int rank = 1;
@@ -94,6 +131,25 @@ namespace AudioSwitcher.UI
 
                     bool isConnected = dev != null && dev.IsActive;
                     bool isDefault = dev != null && dev.IsDefault(_category);
+                    bool isThisTempOverride = hasTempOverride && (
+                        string.Equals(p.Id, tempOverrideId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.Name, tempOverrideId, StringComparison.OrdinalIgnoreCase));
+
+                    // Check if default in another category
+                    string otherBadge = string.Empty;
+                    if (otherDefaultDev != null && dev != null && (
+                        string.Equals(dev.Id, otherDefaultDev.Id, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(dev.Name, otherDefaultDev.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        otherBadge = otherCat switch
+                        {
+                            AudioCategory.OutputSound => "🔊 Sound Default",
+                            AudioCategory.OutputCommunications => "🎧 Comms Default",
+                            AudioCategory.InputSound => "🎤 Sound Mic",
+                            AudioCategory.InputCommunications => "🎙️ Comms Mic",
+                            _ => string.Empty
+                        };
+                    }
 
                     int currentRank = rank++;
 
@@ -111,7 +167,9 @@ namespace AudioSwitcher.UI
                         Name = p.Name,
                         IsConnected = isConnected,
                         StatusText = isConnected ? "Connected" : (dev != null ? dev.StatusText : "Offline / Unplugged"),
-                        IsCurrentDefault = isDefault
+                        IsCurrentDefault = isDefault,
+                        IsTemporaryOverride = isThisTempOverride,
+                        OtherCategoryBadge = otherBadge
                     });
                 }
 
@@ -173,6 +231,215 @@ namespace AudioSwitcher.UI
             });
         }
 
+        #region Drag and Drop Reordering
+
+        private void ItemCard_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (IsInteractiveControl(e.OriginalSource as DependencyObject))
+            {
+                _draggedItem = null;
+                return;
+            }
+
+            _dragStartPoint = e.GetPosition(this);
+            if (sender is FrameworkElement fe && fe.DataContext is PriorityItemViewModel vm)
+            {
+                _draggedItem = vm;
+            }
+        }
+
+        private void ItemCard_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && _draggedItem != null && !_isDragging)
+            {
+                WpfPoint currentPoint = e.GetPosition(this);
+                WpfVector diff = _dragStartPoint - currentPoint;
+
+                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    _isDragging = true;
+                    try
+                    {
+                        if (sender is DependencyObject dragSource)
+                        {
+                            DragDrop.DoDragDrop(dragSource, _draggedItem, DragDropEffects.Move);
+                        }
+                    }
+                    finally
+                    {
+                        _isDragging = false;
+                        _draggedItem = null;
+                        ClearAllDropGuides();
+                    }
+                }
+            }
+        }
+
+        private void ItemCard_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            _draggedItem = null;
+            _isDragging = false;
+            ClearAllDropGuides();
+        }
+
+        private void ItemCard_DragOver(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(typeof(PriorityItemViewModel)))
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+
+            if (sender is FrameworkElement fe)
+            {
+                WpfPoint pos = e.GetPosition(fe);
+                double height = fe.ActualHeight;
+                bool dropBefore = pos.Y < (height / 2.0);
+
+                var (topGuide, bottomGuide) = GetDropGuides(fe);
+                if (topGuide != null && bottomGuide != null)
+                {
+                    topGuide.Visibility = dropBefore ? Visibility.Visible : Visibility.Collapsed;
+                    bottomGuide.Visibility = dropBefore ? Visibility.Collapsed : Visibility.Visible;
+                }
+            }
+        }
+
+        private void ItemCard_DragLeave(object sender, DragEventArgs e)
+        {
+            if (sender is FrameworkElement fe)
+            {
+                var (topGuide, bottomGuide) = GetDropGuides(fe);
+                if (topGuide != null) topGuide.Visibility = Visibility.Collapsed;
+                if (bottomGuide != null) bottomGuide.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void ItemCard_Drop(object sender, DragEventArgs e)
+        {
+            ClearAllDropGuides();
+
+            if (!e.Data.GetDataPresent(typeof(PriorityItemViewModel)))
+                return;
+
+            var sourceItem = e.Data.GetData(typeof(PriorityItemViewModel)) as PriorityItemViewModel;
+            var targetItem = (sender as FrameworkElement)?.DataContext as PriorityItemViewModel;
+
+            if (sourceItem == null || targetItem == null || string.Equals(sourceItem.Id, targetItem.Id, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            if (sender is FrameworkElement fe)
+            {
+                WpfPoint pos = e.GetPosition(fe);
+                double height = fe.ActualHeight;
+                bool dropBefore = pos.Y < (height / 2.0);
+
+                var list = SettingsService.Instance.GetPriorities(_category);
+                int sourceIdx = list.FindIndex(p => string.Equals(p.Id, sourceItem.Id, StringComparison.OrdinalIgnoreCase)
+                                                 || string.Equals(p.Name, sourceItem.Name, StringComparison.OrdinalIgnoreCase));
+                int targetIdx = list.FindIndex(p => string.Equals(p.Id, targetItem.Id, StringComparison.OrdinalIgnoreCase)
+                                                 || string.Equals(p.Name, targetItem.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (sourceIdx >= 0 && targetIdx >= 0)
+                {
+                    var entry = list[sourceIdx];
+                    list.RemoveAt(sourceIdx);
+
+                    int newIdx = targetIdx;
+                    if (sourceIdx < targetIdx)
+                    {
+                        newIdx = dropBefore ? targetIdx - 1 : targetIdx;
+                    }
+                    else
+                    {
+                        newIdx = dropBefore ? targetIdx : targetIdx + 1;
+                    }
+
+                    if (newIdx < 0) newIdx = 0;
+                    if (newIdx > list.Count) newIdx = list.Count;
+
+                    list.Insert(newIdx, entry);
+                    SettingsService.Instance.Save();
+
+                    if (!PrioritySwitcherService.Instance.HasTemporaryOverride(_category))
+                    {
+                        PrioritySwitcherService.Instance.EvaluateCategory(_category);
+                    }
+                    ReloadData();
+                }
+            }
+        }
+
+        private (Border? topGuide, Border? bottomGuide) GetDropGuides(FrameworkElement element)
+        {
+            if (element is Border bdr && bdr.Child is Grid grid)
+            {
+                var top = grid.Children.OfType<Border>().FirstOrDefault(b => b.Name == "TopDropGuide");
+                var bottom = grid.Children.OfType<Border>().FirstOrDefault(b => b.Name == "BottomDropGuide");
+                return (top, bottom);
+            }
+            return (null, null);
+        }
+
+        private void ClearAllDropGuides()
+        {
+            for (int i = 0; i < ItemsPriorityList.Items.Count; i++)
+            {
+                var container = ItemsPriorityList.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                if (container != null)
+                {
+                    var border = FindVisualChild<Border>(container, "CardBorder");
+                    if (border != null)
+                    {
+                        var (top, bottom) = GetDropGuides(border);
+                        if (top != null) top.Visibility = Visibility.Collapsed;
+                        if (bottom != null) bottom.Visibility = Visibility.Collapsed;
+                    }
+                }
+            }
+        }
+
+        private static T? FindVisualChild<T>(DependencyObject parent, string name) where T : FrameworkElement
+        {
+            int count = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild && typedChild.Name == name)
+                    return typedChild;
+
+                var result = FindVisualChild<T>(child, name);
+                if (result != null)
+                    return result;
+            }
+            return null;
+        }
+
+        private static bool IsInteractiveControl(DependencyObject? source)
+        {
+            while (source != null)
+            {
+                if (source is System.Windows.Controls.Primitives.ButtonBase ||
+                    source is System.Windows.Controls.TextBox ||
+                    source is System.Windows.Controls.ComboBox ||
+                    source is System.Windows.Controls.CheckBox)
+                {
+                    return true;
+                }
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return false;
+        }
+
+        #endregion
+
+        #region Actions & Event Handlers
+
         private void TxtSearchFilter_TextChanged(object sender, TextChangedEventArgs e)
         {
             ReloadData();
@@ -181,6 +448,50 @@ namespace AudioSwitcher.UI
         private void BtnClearFilter_Click(object sender, RoutedEventArgs e)
         {
             TxtSearchFilter.Text = string.Empty;
+        }
+
+        private void BtnTempSwitch_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is PriorityItemViewModel vm && vm.IsConnected)
+            {
+                PrioritySwitcherService.Instance.SetTemporaryOverride(_category, vm.Id);
+                ReloadData();
+            }
+        }
+
+        private void BtnClearTempOverride_Click(object sender, RoutedEventArgs e)
+        {
+            PrioritySwitcherService.Instance.ClearTemporaryOverride(_category);
+            ReloadData();
+        }
+
+        private void BtnMakeTempPermanent_Click(object sender, RoutedEventArgs e)
+        {
+            string? tempId = PrioritySwitcherService.Instance.GetTemporaryOverride(_category);
+            if (!string.IsNullOrEmpty(tempId))
+            {
+                var list = SettingsService.Instance.GetPriorities(_category);
+                int index = list.FindIndex(p => string.Equals(p.Id, tempId, StringComparison.OrdinalIgnoreCase)
+                                             || string.Equals(p.Name, tempId, StringComparison.OrdinalIgnoreCase));
+                if (index >= 0)
+                {
+                    var entry = list[index];
+                    list.RemoveAt(index);
+                    list.Insert(0, entry);
+                }
+                else
+                {
+                    var dev = AudioDeviceManager.Instance.GetDeviceById(tempId);
+                    if (dev != null)
+                    {
+                        list.Insert(0, new PriorityDeviceEntry(dev.Id, dev.Name));
+                    }
+                }
+
+                SettingsService.Instance.Save();
+                PrioritySwitcherService.Instance.ClearTemporaryOverride(_category);
+                ReloadData();
+            }
         }
 
         private void BtnMoveUp_Click(object sender, RoutedEventArgs e)
@@ -196,7 +507,10 @@ namespace AudioSwitcher.UI
                     list.RemoveAt(index);
                     list.Insert(index - 1, item);
                     SettingsService.Instance.Save();
-                    PrioritySwitcherService.Instance.EvaluateCategory(_category);
+                    if (!PrioritySwitcherService.Instance.HasTemporaryOverride(_category))
+                    {
+                        PrioritySwitcherService.Instance.EvaluateCategory(_category);
+                    }
                     ReloadData();
                 }
             }
@@ -215,7 +529,10 @@ namespace AudioSwitcher.UI
                     list.RemoveAt(index);
                     list.Insert(index + 1, item);
                     SettingsService.Instance.Save();
-                    PrioritySwitcherService.Instance.EvaluateCategory(_category);
+                    if (!PrioritySwitcherService.Instance.HasTemporaryOverride(_category))
+                    {
+                        PrioritySwitcherService.Instance.EvaluateCategory(_category);
+                    }
                     ReloadData();
                 }
             }
@@ -254,15 +571,6 @@ namespace AudioSwitcher.UI
             }
         }
 
-        private void BtnSetDefault_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is PriorityItemViewModel vm)
-            {
-                AudioDeviceManager.Instance.SetDefaultDevice(vm.Id, _category);
-                ReloadData();
-            }
-        }
-
         private void BtnAddDevice_Click(object sender, RoutedEventArgs e)
         {
             if (CmbAvailableDevices.SelectedItem is ComboBoxItem item && item.Tag is AudioDevice device)
@@ -272,7 +580,10 @@ namespace AudioSwitcher.UI
                 SettingsService.Instance.Save();
 
                 ReloadData();
-                PrioritySwitcherService.Instance.EvaluateCategory(_category);
+                if (!PrioritySwitcherService.Instance.HasTemporaryOverride(_category))
+                {
+                    PrioritySwitcherService.Instance.EvaluateCategory(_category);
+                }
             }
         }
 
@@ -297,5 +608,7 @@ namespace AudioSwitcher.UI
             PrioritySwitcherService.Instance.EvaluateAllPriorities();
             ReloadData();
         }
+
+        #endregion
     }
 }

@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using AudioSwitcher.CoreAudio;
 using AudioSwitcher.Services;
 
@@ -8,13 +10,33 @@ namespace AudioSwitcher.UI
 {
     public partial class MainWindow : Window
     {
+        [DllImport("dwmapi.dll", PreserveSig = true)]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
         private bool _isExplicitExit = false;
 
         public MainWindow()
         {
             InitializeComponent();
-
             Loaded += MainWindow_Loaded;
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            try
+            {
+                IntPtr hwnd = new WindowInteropHelper(this).Handle;
+                int useDarkMode = 1;
+                if (DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDarkMode, sizeof(int)) != 0)
+                {
+                    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, ref useDarkMode, sizeof(int));
+                }
+            }
+            catch { }
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -38,10 +60,32 @@ namespace AudioSwitcher.UI
             // Register events
             AudioDeviceManager.Instance.DevicesUpdated += OnDevicesUpdated;
             PrioritySwitcherService.Instance.DeviceAutoSwitched += OnDeviceAutoSwitched;
+            PrioritySwitcherService.Instance.TemporaryOverrideChanged += OnTemporaryOverrideChanged;
             SettingsService.Instance.SettingsChanged += OnSettingsChanged;
 
             RefreshHiddenDevices();
             UpdateStatus("Listening for audio device changes");
+        }
+
+        private void OnTemporaryOverrideChanged(AudioCategory category, string? deviceId)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                CtrlOutputSound.ReloadData();
+                CtrlOutputComms.ReloadData();
+                CtrlInputSound.ReloadData();
+                CtrlInputComms.ReloadData();
+                if (!string.IsNullOrEmpty(deviceId))
+                {
+                    var dev = AudioDeviceManager.Instance.GetDeviceById(deviceId);
+                    string name = dev?.Name ?? "Device";
+                    UpdateStatus($"Temporary override activated for {category.GetShortName()} ({name})");
+                }
+                else
+                {
+                    UpdateStatus($"Temporary override cleared for {category.GetShortName()}");
+                }
+            });
         }
 
         private void OnSettingsChanged()
@@ -246,6 +290,7 @@ namespace AudioSwitcher.UI
 
             AudioDeviceManager.Instance.DevicesUpdated -= OnDevicesUpdated;
             PrioritySwitcherService.Instance.DeviceAutoSwitched -= OnDeviceAutoSwitched;
+            PrioritySwitcherService.Instance.TemporaryOverrideChanged -= OnTemporaryOverrideChanged;
             SettingsService.Instance.SettingsChanged -= OnSettingsChanged;
         }
 

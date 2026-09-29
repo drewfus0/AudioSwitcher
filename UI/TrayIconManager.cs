@@ -8,6 +8,28 @@ using AudioSwitcher.Services;
 
 namespace AudioSwitcher.UI
 {
+    public class DarkColorTable : ProfessionalColorTable
+    {
+        public override Color ToolStripDropDownBackground => Color.FromArgb(30, 30, 38);
+        public override Color MenuBorder => Color.FromArgb(60, 60, 75);
+        public override Color MenuItemBorder => Color.FromArgb(96, 165, 250);
+        public override Color MenuItemSelected => Color.FromArgb(48, 48, 62);
+        public override Color MenuStripGradientBegin => Color.FromArgb(30, 30, 38);
+        public override Color MenuStripGradientEnd => Color.FromArgb(30, 30, 38);
+        public override Color MenuItemSelectedGradientBegin => Color.FromArgb(48, 48, 62);
+        public override Color MenuItemSelectedGradientEnd => Color.FromArgb(48, 48, 62);
+        public override Color MenuItemPressedGradientBegin => Color.FromArgb(37, 99, 235);
+        public override Color MenuItemPressedGradientEnd => Color.FromArgb(37, 99, 235);
+        public override Color ImageMarginGradientBegin => Color.FromArgb(24, 24, 30);
+        public override Color ImageMarginGradientMiddle => Color.FromArgb(24, 24, 30);
+        public override Color ImageMarginGradientEnd => Color.FromArgb(24, 24, 30);
+        public override Color SeparatorDark => Color.FromArgb(55, 55, 68);
+        public override Color SeparatorLight => Color.FromArgb(30, 30, 38);
+        public override Color CheckBackground => Color.FromArgb(37, 99, 235);
+        public override Color CheckSelectedBackground => Color.FromArgb(59, 130, 246);
+        public override Color CheckPressedBackground => Color.FromArgb(29, 78, 216);
+    }
+
     public class TrayIconManager : IDisposable
     {
         private readonly NotifyIcon _notifyIcon;
@@ -15,7 +37,14 @@ namespace AudioSwitcher.UI
 
         public TrayIconManager()
         {
-            _contextMenu = new ContextMenuStrip();
+            _contextMenu = new ContextMenuStrip
+            {
+                Renderer = new ToolStripProfessionalRenderer(new DarkColorTable()),
+                ShowImageMargin = false,
+                ForeColor = Color.FromArgb(244, 244, 245),
+                BackColor = Color.FromArgb(30, 30, 38),
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular)
+            };
             _contextMenu.Opening += ContextMenu_Opening;
 
             // Load app icon
@@ -61,24 +90,45 @@ namespace AudioSwitcher.UI
             _contextMenu.Items.Clear();
 
             // 1. Output - Sound submenu
-            _contextMenu.Items.Add(CreateDeviceSubMenu("Output (Sound)", AudioCategory.OutputSound));
+            _contextMenu.Items.Add(CreateDeviceSubMenu("🔊 Output (Sound)", AudioCategory.OutputSound));
 
             // 2. Output - Comms submenu
-            _contextMenu.Items.Add(CreateDeviceSubMenu("Output (Comms)", AudioCategory.OutputCommunications));
+            _contextMenu.Items.Add(CreateDeviceSubMenu("🎧 Output (Comms)", AudioCategory.OutputCommunications));
 
             // 3. Input - Sound submenu
-            _contextMenu.Items.Add(CreateDeviceSubMenu("Input (Sound)", AudioCategory.InputSound));
+            _contextMenu.Items.Add(CreateDeviceSubMenu("🎤 Input (Sound)", AudioCategory.InputSound));
 
             // 4. Input - Comms submenu
-            _contextMenu.Items.Add(CreateDeviceSubMenu("Input (Comms)", AudioCategory.InputCommunications));
+            _contextMenu.Items.Add(CreateDeviceSubMenu("🎙️ Input (Comms)", AudioCategory.InputCommunications));
 
             _contextMenu.Items.Add(new ToolStripSeparator());
+
+            // Check if any temporary override is active
+            bool anyOverride = PrioritySwitcherService.Instance.HasTemporaryOverride(AudioCategory.OutputSound)
+                            || PrioritySwitcherService.Instance.HasTemporaryOverride(AudioCategory.OutputCommunications)
+                            || PrioritySwitcherService.Instance.HasTemporaryOverride(AudioCategory.InputSound)
+                            || PrioritySwitcherService.Instance.HasTemporaryOverride(AudioCategory.InputCommunications);
+
+            if (anyOverride)
+            {
+                var clearOverrideItem = new ToolStripMenuItem("↺ Clear Temporary Overrides (Resume Auto)")
+                {
+                    ForeColor = Color.FromArgb(251, 191, 36)
+                };
+                clearOverrideItem.Click += (s, e) =>
+                {
+                    PrioritySwitcherService.Instance.ClearAllTemporaryOverrides();
+                };
+                _contextMenu.Items.Add(clearOverrideItem);
+                _contextMenu.Items.Add(new ToolStripSeparator());
+            }
 
             // 5. Master Auto-Switch toggle
             var autoSwitchItem = new ToolStripMenuItem("Auto-Switch Enabled")
             {
                 Checked = SettingsService.Instance.Settings.AutoSwitchEnabled,
-                CheckOnClick = true
+                CheckOnClick = true,
+                ForeColor = Color.FromArgb(228, 228, 231)
             };
             autoSwitchItem.Click += (s, e) =>
             {
@@ -94,7 +144,8 @@ namespace AudioSwitcher.UI
             // 6. Open Main Window
             var openItem = new ToolStripMenuItem("Open AudioSwitcher")
             {
-                Font = new Font(_contextMenu.Font, System.Drawing.FontStyle.Bold)
+                Font = new Font(_contextMenu.Font, FontStyle.Bold),
+                ForeColor = Color.FromArgb(96, 165, 250)
             };
             openItem.Click += (s, e) => App.CurrentApp.ShowMainWindow();
             _contextMenu.Items.Add(openItem);
@@ -102,7 +153,10 @@ namespace AudioSwitcher.UI
             _contextMenu.Items.Add(new ToolStripSeparator());
 
             // 7. Exit
-            var exitItem = new ToolStripMenuItem("Exit");
+            var exitItem = new ToolStripMenuItem("Exit")
+            {
+                ForeColor = Color.FromArgb(248, 113, 113)
+            };
             exitItem.Click += (s, e) =>
             {
                 _notifyIcon.Visible = false;
@@ -113,30 +167,54 @@ namespace AudioSwitcher.UI
 
         private ToolStripMenuItem CreateDeviceSubMenu(string title, AudioCategory category)
         {
-            var menu = new ToolStripMenuItem(title);
+            var menu = new ToolStripMenuItem(title)
+            {
+                ForeColor = Color.FromArgb(244, 244, 245)
+            };
+
+            if (menu.DropDown is ToolStripDropDownMenu dropDownMenu)
+            {
+                dropDownMenu.ShowImageMargin = false;
+                dropDownMenu.BackColor = Color.FromArgb(30, 30, 38);
+                dropDownMenu.ForeColor = Color.FromArgb(244, 244, 245);
+            }
+
             var devices = AudioDeviceManager.Instance.GetDevices(category.GetDataFlow())
                 .Where(d => d.IsActive && !SettingsService.Instance.IsDeviceIgnored(d.Id, d.Name))
                 .ToList();
 
             if (devices.Count == 0)
             {
-                var empty = new ToolStripMenuItem("(No active devices detected)") { Enabled = false };
+                var empty = new ToolStripMenuItem("(No active devices detected)") { Enabled = false, ForeColor = Color.FromArgb(113, 113, 122) };
                 menu.DropDownItems.Add(empty);
                 return menu;
             }
 
+            string? tempOverrideId = PrioritySwitcherService.Instance.GetTemporaryOverride(category);
+
             foreach (var device in devices)
             {
                 bool isDefault = device.IsDefault(category);
-                var item = new ToolStripMenuItem(device.Name)
+                bool isTempOverride = !string.IsNullOrEmpty(tempOverrideId) &&
+                    (string.Equals(device.Id, tempOverrideId, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(device.Name, tempOverrideId, StringComparison.OrdinalIgnoreCase));
+
+                string label = device.Name;
+                if (isTempOverride)
                 {
-                    Checked = isDefault
+                    label = $"⚡ {device.Name} (Temp Active)";
+                }
+
+                var item = new ToolStripMenuItem(label)
+                {
+                    Checked = isDefault,
+                    ForeColor = isDefault ? Color.FromArgb(96, 165, 250) : Color.FromArgb(244, 244, 245)
                 };
 
                 string deviceId = device.Id;
                 item.Click += (s, e) =>
                 {
-                    AudioDeviceManager.Instance.SetDefaultDevice(deviceId, category);
+                    PrioritySwitcherService.Instance.SetTemporaryOverride(category, deviceId);
                 };
 
                 menu.DropDownItems.Add(item);

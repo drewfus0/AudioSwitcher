@@ -25,6 +25,23 @@ namespace AudioSwitcher.UI
         }
     }
 
+    public class StringNotEmptyToVisibilityConverter : IValueConverter
+    {
+        public bool Invert { get; set; } = false;
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            bool hasValue = value is string str && !string.IsNullOrWhiteSpace(str);
+            if (Invert) hasValue = !hasValue;
+            return hasValue ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public class ConnectionStatusBrushConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
