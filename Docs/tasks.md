@@ -1,4 +1,7 @@
 ->Icon for the app
+->priority list to show colours/visually distinct what is connected/disconnected and currently selected.
+->show in all list if a device is use/selected for another category sound/comms, ??and  input/ouput?? 
+
 ->right click first to show active devices for each category
 ->how to handle temporary overrides when the user manually switches devices?
 why do this? new device for testing/trying. broken device temporarily out of commision?  other use cases?

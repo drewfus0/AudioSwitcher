@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AudioSwitcher")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fc3797fe4d1306bf34b7275d04a6e7ba5028a105")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+98b21aa875381fdc9f55749f5c1d437b3c0f937d")]
 [assembly: System.Reflection.AssemblyProductAttribute("AudioSwitcher")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AudioSwitcher")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
