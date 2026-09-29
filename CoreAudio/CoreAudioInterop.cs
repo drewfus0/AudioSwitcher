@@ -105,7 +105,7 @@ namespace AudioSwitcher.CoreAudio
     [Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal interface IMMDevice
     {
-        [PreserveSig] int Activate(ref Guid iid, CLSCTX dwClsCtx, IntPtr pActivationParams, [MarshalAs(UnmanagedType.IUnknown)] out object ppInterface);
+        [PreserveSig] int Activate(ref Guid iid, CLSCTX dwClsCtx, IntPtr pActivationParams, out IntPtr ppInterface);
         [PreserveSig] int OpenPropertyStore(EStgmAccess stgmAccess, out IPropertyStore propertyStore);
         [PreserveSig] int GetId([MarshalAs(UnmanagedType.LPWStr)] out string ppstrId);
         [PreserveSig] int GetState(out EDeviceState pdwState);
@@ -143,25 +143,25 @@ namespace AudioSwitcher.CoreAudio
 
     #region Audio Endpoint Volume Interface
 
-    [Guid("5BC63904-734E-40E0-863A-B690174A3F43"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     internal interface IAudioEndpointVolume
     {
         [PreserveSig] int RegisterControlChangeNotify(IntPtr pNotify);
         [PreserveSig] int UnregisterControlChangeNotify(IntPtr pNotify);
         [PreserveSig] int GetChannelCount(out uint pnChannelCount);
-        [PreserveSig] int SetMasterVolumeLevel(float fLevelDB, ref Guid pguidEventContext);
-        [PreserveSig] int SetMasterVolumeLevelScalar(float fLevel, ref Guid pguidEventContext);
+        [PreserveSig] int SetMasterVolumeLevel(float fLevelDB, IntPtr pguidEventContext);
+        [PreserveSig] int SetMasterVolumeLevelScalar(float fLevel, IntPtr pguidEventContext);
         [PreserveSig] int GetMasterVolumeLevel(out float pfLevelDB);
         [PreserveSig] int GetMasterVolumeLevelScalar(out float pfLevel);
-        [PreserveSig] int SetChannelVolumeLevel(uint nChannel, float fLevelDB, ref Guid pguidEventContext);
-        [PreserveSig] int SetChannelVolumeLevelScalar(uint nChannel, float fLevel, ref Guid pguidEventContext);
+        [PreserveSig] int SetChannelVolumeLevel(uint nChannel, float fLevelDB, IntPtr pguidEventContext);
+        [PreserveSig] int SetChannelVolumeLevelScalar(uint nChannel, float fLevel, IntPtr pguidEventContext);
         [PreserveSig] int GetChannelVolumeLevel(uint nChannel, out float pfLevelDB);
         [PreserveSig] int GetChannelVolumeLevelScalar(uint nChannel, out float pfLevel);
-        [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, ref Guid pguidEventContext);
+        [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool bMute, IntPtr pguidEventContext);
         [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool pbMute);
         [PreserveSig] int GetVolumeStepInfo(out uint pnStep, out uint pnStepCount);
-        [PreserveSig] int VolumeStepUp(ref Guid pguidEventContext);
-        [PreserveSig] int VolumeStepDown(ref Guid pguidEventContext);
+        [PreserveSig] int VolumeStepUp(IntPtr pguidEventContext);
+        [PreserveSig] int VolumeStepDown(IntPtr pguidEventContext);
         [PreserveSig] int QueryHardwareSupport(out uint pdwHardwareSupportMask);
         [PreserveSig] int GetVolumeRange(out float pflVolumeMindB, out float pflVolumeMaxdB, out float pflVolumeIncrementdB);
     }

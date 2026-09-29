@@ -8,3 +8,36 @@ System.ApplicationException: Object synchronization method was called from an un
    at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
    at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
 
+[29/09/2026 4:14:43 PM] Unhandled UI Exception:
+System.ApplicationException: Object synchronization method was called from an unsynchronized block of code.
+   at System.Threading.Mutex.ReleaseMutex()
+   at AudioSwitcher.App.OnExit(ExitEventArgs e) in C:\Users\drewf\vscode\AudioSwitcher\App.xaml.cs:line 190
+   at System.Windows.Application.DoShutdown()
+   at System.Windows.Application.ShutdownImpl()
+   at System.Windows.Application.ShutdownCallback(Object arg)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[29/09/2026 4:15:05 PM] Unhandled UI Exception:
+System.ApplicationException: Object synchronization method was called from an unsynchronized block of code.
+   at System.Threading.Mutex.ReleaseMutex()
+   at AudioSwitcher.App.OnExit(ExitEventArgs e) in C:\Users\drewf\vscode\AudioSwitcher\App.xaml.cs:line 190
+   at System.Windows.Application.DoShutdown()
+   at System.Windows.Application.ShutdownImpl()
+   at System.Windows.Application.ShutdownCallback(Object arg)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+
+[29/09/2026 4:18:53 PM] Unhandled UI Exception:
+System.InvalidOperationException: Cannot set Visibility to Visible or call Show, ShowDialog, Close, or WindowInteropHelper.EnsureHandle while a Window is closing.
+   at System.Windows.Window.VerifyNotClosing()
+   at System.Windows.Window.InternalClose(Boolean shutdown, Boolean ignoreCancel)
+   at AudioSwitcher.UI.MainWindow.ExitApplication() in C:\Users\drewf\vscode\AudioSwitcher\UI\MainWindow.xaml.cs:line 342
+   at AudioSwitcher.UI.MainWindow.Window_Closing(Object sender, CancelEventArgs e) in C:\Users\drewf\vscode\AudioSwitcher\UI\MainWindow.xaml.cs:line 306
+   at System.Windows.Window.WmClose()
+   at System.Windows.Window.WindowFilterMessage(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   at System.Windows.Interop.HwndSource.PublicHooksFilterMessage(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   at MS.Win32.HwndWrapper.WndProc(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam, Boolean& handled)
+   at System.Windows.Threading.ExceptionWrapper.InternalRealCall(Delegate callback, Object args, Int32 numArgs)
+   at System.Windows.Threading.ExceptionWrapper.TryCatchWhen(Object source, Delegate callback, Object args, Int32 numArgs, Delegate catchHandler)
+

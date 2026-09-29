@@ -140,9 +140,10 @@ namespace AudioSwitcher.CoreAudio
                 if (hr != 0 || device == null) return;
 
                 var iid = IID_IAudioClient;
-                hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out object ppClient);
-                if (hr != 0 || ppClient is not IAudioClient client) return;
-                audioClient = client;
+                hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pClient);
+                if (hr != 0 || pClient == IntPtr.Zero) return;
+                audioClient = (IAudioClient)Marshal.GetObjectForIUnknown(pClient);
+                Marshal.Release(pClient);
 
                 hr = audioClient.GetMixFormat(out pFormat);
                 if (hr != 0 || pFormat == IntPtr.Zero) return;

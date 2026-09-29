@@ -1,0 +1,79 @@
+=== VOLUME MANAGER TEST ===
+
+Device: Headphones (Qudelix-5K) ({0.0.0.00000000}.{2c64291a-9b18-47fc-8606-b298d9991f1c})
+1. Getting device: {0.0.0.00000000}.{2c64291a-9b18-47fc-8606-b298d9991f1c}...
+   GetDevice HR: 0x00000000 (Success: True)
+2. Activating IAudioEndpointVolume...
+   Activate HR: 0x00000000, pInterface: 0x21F025BB8B0
+   GetMasterVolumeLevelScalar HR: 0x00000000, Current: 0.559
+   GetMute HR: 0x00000000, Muted: False
+3. Setting Master Volume to 0.42...
+   SetMasterVolumeLevelScalar HR: 0x00000000
+   Read back after set: 0.420
+4. Restored original volume.
+
+
+Device: CABLE In 16ch (VB-Audio Virtual Cable) ({0.0.0.00000000}.{35271c2c-998b-48d0-bab5-26a390be3d71})
+1. Getting device: {0.0.0.00000000}.{35271c2c-998b-48d0-bab5-26a390be3d71}...
+   GetDevice HR: 0x00000000 (Success: True)
+2. Activating IAudioEndpointVolume...
+   Activate HR: 0x00000000, pInterface: 0x21F025BC1B0
+   GetMasterVolumeLevelScalar HR: 0x00000000, Current: 1.000
+   GetMute HR: 0x00000000, Muted: False
+3. Setting Master Volume to 0.42...
+   SetMasterVolumeLevelScalar HR: 0x00000000
+   Read back after set: 0.420
+4. Restored original volume.
+
+
+Device: Headphones (RØDE VideoMic NTG) ({0.0.0.00000000}.{52e9f763-d2f2-4ee1-a1bd-26ead62f959a})
+1. Getting device: {0.0.0.00000000}.{52e9f763-d2f2-4ee1-a1bd-26ead62f959a}...
+   GetDevice HR: 0x00000000 (Success: True)
+2. Activating IAudioEndpointVolume...
+   Activate HR: 0x00000000, pInterface: 0x21F025BCDB0
+   GetMasterVolumeLevelScalar HR: 0x00000000, Current: 0.443
+   GetMute HR: 0x00000000, Muted: False
+3. Setting Master Volume to 0.42...
+   SetMasterVolumeLevelScalar HR: 0x00000000
+   Read back after set: 0.420
+4. Restored original volume.
+
+
+Device: Speakers (Qudelix-5K USB DAC/MIC 48KHz) ({0.0.0.00000000}.{6c2ee0ad-c4e3-4624-aae5-d2d5cc13c1de})
+1. Getting device: {0.0.0.00000000}.{6c2ee0ad-c4e3-4624-aae5-d2d5cc13c1de}...
+   GetDevice HR: 0x00000000 (Success: True)
+2. Activating IAudioEndpointVolume...
+   Activate HR: 0x00000000, pInterface: 0x21F025BD0B0
+   GetMasterVolumeLevelScalar HR: 0x00000000, Current: 0.040
+   GetMute HR: 0x00000000, Muted: False
+3. Setting Master Volume to 0.42...
+   SetMasterVolumeLevelScalar HR: 0x00000000
+   Read back after set: 0.420
+4. Restored original volume.
+
+
+Device: CABLE Input (VB-Audio Virtual Cable) ({0.0.0.00000000}.{73c5f661-8a43-4275-b4d4-0221f65f00ab})
+1. Getting device: {0.0.0.00000000}.{73c5f661-8a43-4275-b4d4-0221f65f00ab}...
+   GetDevice HR: 0x00000000 (Success: True)
+2. Activating IAudioEndpointVolume...
+   Activate HR: 0x00000000, pInterface: 0x21F025BC7B0
+   GetMasterVolumeLevelScalar HR: 0x00000000, Current: 1.000
+   GetMute HR: 0x00000000, Muted: False
+3. Setting Master Volume to 0.42...
+   SetMasterVolumeLevelScalar HR: 0x00000000
+   Read back after set: 0.420
+4. Restored original volume.
+
+
+Device: Headphones (RØDE XCM-50) ({0.0.0.00000000}.{b3ce186c-a5d0-4e00-9793-f99baaa3eb39})
+1. Getting device: {0.0.0.00000000}.{b3ce186c-a5d0-4e00-9793-f99baaa3eb39}...
+   GetDevice HR: 0x00000000 (Success: True)
+2. Activating IAudioEndpointVolume...
+   Activate HR: 0x00000000, pInterface: 0x21F025BC4B0
+   GetMasterVolumeLevelScalar HR: 0x00000000, Current: 0.520
+   GetMute HR: 0x00000000, Muted: False
+3. Setting Master Volume to 0.42...
+   SetMasterVolumeLevelScalar HR: 0x00000000
+   Read back after set: 0.420
+4. Restored original volume.
+

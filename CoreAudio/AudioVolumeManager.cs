@@ -9,7 +9,7 @@ namespace AudioSwitcher.CoreAudio
         public static AudioVolumeManager Instance => _instance ??= new AudioVolumeManager();
 
         private readonly IMMDeviceEnumerator _enumerator;
-        private static readonly Guid IID_IAudioEndpointVolume = new("5BC63904-734E-40E0-863A-B690174A3F43");
+        private static readonly Guid IID_IAudioEndpointVolume = new("5CDF2C82-841E-4546-9722-0CF74078229A");
 
         public AudioVolumeManager()
         {
@@ -20,39 +20,38 @@ namespace AudioSwitcher.CoreAudio
         {
             if (string.IsNullOrWhiteSpace(deviceId)) return 1.0f;
 
+            IMMDevice? device = null;
             try
             {
-                int hr = _enumerator.GetDevice(deviceId, out IMMDevice device);
+                int hr = _enumerator.GetDevice(deviceId, out device);
                 if (hr == 0 && device != null)
                 {
-                    try
+                    var iid = IID_IAudioEndpointVolume;
+                    hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pInterface);
+                    if (hr == 0 && pInterface != IntPtr.Zero)
                     {
-                        var iid = IID_IAudioEndpointVolume;
-                        hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out object ppInterface);
-                        if (hr == 0 && ppInterface is IAudioEndpointVolume endpointVolume)
+                        var endpointVolume = (IAudioEndpointVolume)Marshal.GetObjectForIUnknown(pInterface);
+                        try
                         {
-                            try
+                            if (endpointVolume.GetMasterVolumeLevelScalar(out float level) == 0)
                             {
-                                if (endpointVolume.GetMasterVolumeLevelScalar(out float level) == 0)
-                                {
-                                    return Math.Clamp(level, 0.0f, 1.0f);
-                                }
-                            }
-                            finally
-                            {
-                                Marshal.ReleaseComObject(endpointVolume);
+                                return Math.Clamp(level, 0.0f, 1.0f);
                             }
                         }
-                    }
-                    finally
-                    {
-                        Marshal.ReleaseComObject(device);
+                        finally
+                        {
+                            Marshal.Release(pInterface);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"GetVolume failed for {deviceId}: {ex.Message}");
+            }
+            finally
+            {
+                if (device != null) Marshal.ReleaseComObject(device);
             }
 
             return 1.0f;
@@ -63,38 +62,46 @@ namespace AudioSwitcher.CoreAudio
             if (string.IsNullOrWhiteSpace(deviceId)) return false;
             volume = Math.Clamp(volume, 0.0f, 1.0f);
 
+            IMMDevice? device = null;
             try
             {
-                int hr = _enumerator.GetDevice(deviceId, out IMMDevice device);
-                if (hr == 0 && device != null)
+                int hr = _enumerator.GetDevice(deviceId, out device);
+                if (hr != 0 || device == null)
                 {
-                    try
+                    System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] GetDevice HR=0x{hr:X8}\n");
+                    return false;
+                }
+
+                var iid = IID_IAudioEndpointVolume;
+                hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pInterface);
+                if (hr != 0 || pInterface == IntPtr.Zero)
+                {
+                    System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] Activate HR=0x{hr:X8}, pInterface=0x{pInterface.ToInt64():X}\n");
+                    return false;
+                }
+
+                var endpointVolume = (IAudioEndpointVolume)Marshal.GetObjectForIUnknown(pInterface);
+                try
+                {
+                    int setHr = endpointVolume.SetMasterVolumeLevelScalar(volume, IntPtr.Zero);
+                    if (setHr != 0)
                     {
-                        var iid = IID_IAudioEndpointVolume;
-                        hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out object ppInterface);
-                        if (hr == 0 && ppInterface is IAudioEndpointVolume endpointVolume)
-                        {
-                            try
-                            {
-                                var guid = Guid.Empty;
-                                int setHr = endpointVolume.SetMasterVolumeLevelScalar(volume, ref guid);
-                                return setHr == 0;
-                            }
-                            finally
-                            {
-                                Marshal.ReleaseComObject(endpointVolume);
-                            }
-                        }
+                        System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] SetMasterVolumeLevelScalar HR=0x{setHr:X8}\n");
                     }
-                    finally
-                    {
-                        Marshal.ReleaseComObject(device);
-                    }
+                    return setHr == 0;
+                }
+                finally
+                {
+                    Marshal.Release(pInterface);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"SetVolume failed for {deviceId}: {ex.Message}");
+                System.IO.File.AppendAllText("volume_test_output.txt", $"   [DEBUG] EXCEPTION: {ex}\n");
+            }
+            finally
+            {
+                if (device != null) Marshal.ReleaseComObject(device);
             }
 
             return false;
@@ -116,39 +123,38 @@ namespace AudioSwitcher.CoreAudio
         {
             if (string.IsNullOrWhiteSpace(deviceId)) return false;
 
+            IMMDevice? device = null;
             try
             {
-                int hr = _enumerator.GetDevice(deviceId, out IMMDevice device);
+                int hr = _enumerator.GetDevice(deviceId, out device);
                 if (hr == 0 && device != null)
                 {
-                    try
+                    var iid = IID_IAudioEndpointVolume;
+                    hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pInterface);
+                    if (hr == 0 && pInterface != IntPtr.Zero)
                     {
-                        var iid = IID_IAudioEndpointVolume;
-                        hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out object ppInterface);
-                        if (hr == 0 && ppInterface is IAudioEndpointVolume endpointVolume)
+                        var endpointVolume = (IAudioEndpointVolume)Marshal.GetObjectForIUnknown(pInterface);
+                        try
                         {
-                            try
+                            if (endpointVolume.GetMute(out bool isMuted) == 0)
                             {
-                                if (endpointVolume.GetMute(out bool isMuted) == 0)
-                                {
-                                    return isMuted;
-                                }
-                            }
-                            finally
-                            {
-                                Marshal.ReleaseComObject(endpointVolume);
+                                return isMuted;
                             }
                         }
-                    }
-                    finally
-                    {
-                        Marshal.ReleaseComObject(device);
+                        finally
+                        {
+                            Marshal.Release(pInterface);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"GetMute failed for {deviceId}: {ex.Message}");
+            }
+            finally
+            {
+                if (device != null) Marshal.ReleaseComObject(device);
             }
 
             return false;
@@ -158,38 +164,36 @@ namespace AudioSwitcher.CoreAudio
         {
             if (string.IsNullOrWhiteSpace(deviceId)) return false;
 
+            IMMDevice? device = null;
             try
             {
-                int hr = _enumerator.GetDevice(deviceId, out IMMDevice device);
+                int hr = _enumerator.GetDevice(deviceId, out device);
                 if (hr == 0 && device != null)
                 {
-                    try
+                    var iid = IID_IAudioEndpointVolume;
+                    hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pInterface);
+                    if (hr == 0 && pInterface != IntPtr.Zero)
                     {
-                        var iid = IID_IAudioEndpointVolume;
-                        hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out object ppInterface);
-                        if (hr == 0 && ppInterface is IAudioEndpointVolume endpointVolume)
+                        var endpointVolume = (IAudioEndpointVolume)Marshal.GetObjectForIUnknown(pInterface);
+                        try
                         {
-                            try
-                            {
-                                var guid = Guid.Empty;
-                                int setHr = endpointVolume.SetMute(mute, ref guid);
-                                return setHr == 0;
-                            }
-                            finally
-                            {
-                                Marshal.ReleaseComObject(endpointVolume);
-                            }
+                            int setHr = endpointVolume.SetMute(mute, IntPtr.Zero);
+                            return setHr == 0;
                         }
-                    }
-                    finally
-                    {
-                        Marshal.ReleaseComObject(device);
+                        finally
+                        {
+                            Marshal.Release(pInterface);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SetMute failed for {deviceId}: {ex.Message}");
+            }
+            finally
+            {
+                if (device != null) Marshal.ReleaseComObject(device);
             }
 
             return false;
