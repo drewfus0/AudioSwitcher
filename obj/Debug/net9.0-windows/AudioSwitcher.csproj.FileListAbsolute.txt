@@ -27,3 +27,5 @@ C:\Users\drewf\vscode\AudioSwitcher\bin\Debug\net9.0-windows\Assets\app.ico
 C:\Users\drewf\vscode\AudioSwitcher\bin\Debug\net9.0-windows\Assets\app.png
 C:\Users\drewf\vscode\AudioSwitcher\obj\Debug\net9.0-windows\UI\VolumeCalibrationWindow.baml
 C:\Users\drewf\vscode\AudioSwitcher\obj\Debug\net9.0-windows\UI\VolumeCalibrationWindow.g.cs
+C:\Users\drewf\vscode\AudioSwitcher\obj\Debug\net9.0-windows\UI\ToastNotificationWindow.baml
+C:\Users\drewf\vscode\AudioSwitcher\obj\Debug\net9.0-windows\UI\ToastNotificationWindow.g.cs

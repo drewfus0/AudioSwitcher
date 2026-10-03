@@ -14,6 +14,7 @@ namespace AudioSwitcher.Services
 
         private readonly AudioDeviceManager _deviceManager;
         private readonly SettingsService _settingsService;
+        private readonly System.Threading.Timer _debounceTimer;
         private int _isEvaluating = 0;
 
         // Active output tracking for reliable volume auto-leveling
@@ -32,6 +33,11 @@ namespace AudioSwitcher.Services
         {
             _deviceManager = AudioDeviceManager.Instance;
             _settingsService = SettingsService.Instance;
+
+            _debounceTimer = new System.Threading.Timer(_ =>
+            {
+                EvaluateAllPrioritiesInternal();
+            }, null, Timeout.Infinite, Timeout.Infinite);
 
             // Seed initial active output
             var initialDefault = _deviceManager.GetDefaultDevice(AudioCategory.OutputSound);
@@ -59,12 +65,13 @@ namespace AudioSwitcher.Services
 
         private void OnDevicesUpdated()
         {
-            EvaluateAllPriorities();
+            // Debounce by 250ms to allow Bluetooth link / hardware USB transients to settle
+            _debounceTimer.Change(250, Timeout.Infinite);
         }
 
         private void OnSettingsChanged()
         {
-            EvaluateAllPriorities();
+            _debounceTimer.Change(50, Timeout.Infinite);
         }
 
         public bool HasTemporaryOverride(AudioCategory category)
@@ -174,6 +181,11 @@ namespace AudioSwitcher.Services
 
         public void EvaluateAllPriorities()
         {
+            _debounceTimer.Change(0, Timeout.Infinite);
+        }
+
+        private void EvaluateAllPrioritiesInternal()
+        {
             if (Interlocked.CompareExchange(ref _isEvaluating, 1, 0) != 0)
                 return;
 
@@ -249,22 +261,63 @@ namespace AudioSwitcher.Services
 
             // Find highest priority available device
             AudioDevice? targetDevice = null;
+            int targetPriorityIndex = -1;
 
-            foreach (var entry in priorities)
+            for (int i = 0; i < priorities.Count; i++)
             {
-                // Match by ID first
-                var match = activeDevices.FirstOrDefault(d => string.Equals(d.Id, entry.Id, StringComparison.OrdinalIgnoreCase));
-                
-                // If not found by ID, fallback to friendly name match (handles USB port changes)
-                if (match == null)
-                {
-                    match = activeDevices.FirstOrDefault(d => string.Equals(d.Name, entry.Name, StringComparison.OrdinalIgnoreCase));
-                }
+                var entry = priorities[i];
+                var match = activeDevices.FirstOrDefault(d => string.Equals(d.Id, entry.Id, StringComparison.OrdinalIgnoreCase))
+                         ?? activeDevices.FirstOrDefault(d => string.Equals(d.Name, entry.Name, StringComparison.OrdinalIgnoreCase));
 
                 if (match != null)
                 {
                     targetDevice = match;
+                    targetPriorityIndex = i;
                     break;
+                }
+            }
+
+            // If a fallback device is matched but is not #1 in priority (e.g. index > 0),
+            // wait briefly (grace period up to 3500ms) to allow higher-priority Bluetooth devices (which reconnect after USB unplug) to come online
+            // instead of prematurely double-switching to an intermediate device.
+            if (targetPriorityIndex > 0 && category == AudioCategory.OutputSound)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < 3500)
+                {
+                    _deviceManager.RefreshDevices();
+                    var refreshedActive = _deviceManager.GetDevices(flow)
+                        .Where(d => d.IsActive && !_settingsService.IsDeviceIgnored(d.Id, d.Name))
+                        .ToList();
+
+                    bool foundHigher = false;
+                    for (int i = 0; i < targetPriorityIndex; i++)
+                    {
+                        var higherEntry = priorities[i];
+                        var higherMatch = refreshedActive.FirstOrDefault(d => string.Equals(d.Id, higherEntry.Id, StringComparison.OrdinalIgnoreCase))
+                                       ?? refreshedActive.FirstOrDefault(d => string.Equals(d.Name, higherEntry.Name, StringComparison.OrdinalIgnoreCase));
+
+                        if (higherMatch != null)
+                        {
+                            targetDevice = higherMatch;
+                            targetPriorityIndex = i;
+                            foundHigher = true;
+                            break;
+                        }
+                    }
+
+                    if (foundHigher && targetPriorityIndex == 0)
+                    {
+                        break;
+                    }
+                    if (foundHigher)
+                    {
+                        // Found a higher-priority device (like Bluetooth Qudelix), wait a tiny moment to ensure its endpoint is stable
+                        Thread.Sleep(150);
+                        break;
+                    }
+
+                    Thread.Sleep(200);
                 }
             }
 

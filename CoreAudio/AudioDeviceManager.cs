@@ -217,10 +217,71 @@ namespace AudioSwitcher.CoreAudio
             return list;
         }
 
-        public bool SetDefaultDevice(string deviceId, AudioCategory category)
+        private static readonly Guid IID_IAudioClient = new("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2");
+
+        public bool EnsureEndpointReady(string deviceId, int timeoutMs = 2500)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId)) return false;
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs)
+            {
+                IMMDevice? device = null;
+                IAudioClient? audioClient = null;
+                IntPtr pFormat = IntPtr.Zero;
+
+                try
+                {
+                    int hr = _enumerator.GetDevice(deviceId, out device);
+                    if (hr == 0 && device != null)
+                    {
+                        var iid = IID_IAudioClient;
+                        hr = device.Activate(ref iid, CLSCTX.CLSCTX_ALL, IntPtr.Zero, out IntPtr pClient);
+                        if (hr == 0 && pClient != IntPtr.Zero)
+                        {
+                            audioClient = (IAudioClient)Marshal.GetObjectForIUnknown(pClient);
+                            Marshal.Release(pClient);
+
+                            hr = audioClient.GetMixFormat(out pFormat);
+                            if (hr == 0 && pFormat != IntPtr.Zero)
+                            {
+                                var sessionGuid = Guid.Empty;
+                                hr = audioClient.Initialize(AUDCLNT_SHAREMODE.AUDCLNT_SHAREMODE_SHARED, 0, 2000000, 0, pFormat, ref sessionGuid);
+                                if (hr == 0)
+                                {
+                                    // Endpoint accepted WASAPI initialization; hardware & driver are warm and ready
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore exceptions during readiness polling
+                }
+                finally
+                {
+                    if (pFormat != IntPtr.Zero) Marshal.FreeCoTaskMem(pFormat);
+                    if (audioClient != null) Marshal.ReleaseComObject(audioClient);
+                    if (device != null) Marshal.ReleaseComObject(device);
+                }
+
+                Thread.Sleep(100);
+            }
+
+            return false;
+        }
+
+        public bool SetDefaultDevice(string deviceId, AudioCategory category, bool ensureReady = true)
         {
             try
             {
+                if (ensureReady && (category == AudioCategory.OutputSound || category == AudioCategory.OutputCommunications))
+                {
+                    EnsureEndpointReady(deviceId);
+                }
+
                 if (category == AudioCategory.OutputSound)
                 {
                     _policyConfigClient.SetDefaultEndpoint(deviceId, ERole.eConsole);

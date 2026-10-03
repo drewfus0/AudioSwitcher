@@ -9,7 +9,7 @@ Total audio devices detected: 53
   * Speakers (Sonic Studio Virtual Mixer) (Disabled) 
   * Digital Audio (HDMI) (High Definition Audio Device) (Not Present) 
   * ROG PG279Q (NVIDIA High Definition Audio) (Not Present) 
-  * Headphones (Qudelix-5K) (Connected) 
+  * Headphones (Qudelix-5K) (Unplugged) 
   * CABLE In 16ch (VB-Audio Virtual Cable) (Connected) 
   * Audio Output (Not Present) 
   * Headset (FIIO EH11 Hands-Free) (Unplugged) 
