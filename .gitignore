@@ -1,0 +1,40 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# User-specific / Local settings
+*.userprefs
+
+# Test outputs, temporary logs, and crash dumps
+crash_log.txt
+*.log
+*test_output.txt
+test_output.txt
+volume_test_output.txt
+audio_test_output.txt
+switch_test_output.txt
+format_test_output.txt
+bridge_test_output.txt
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
