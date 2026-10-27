@@ -212,6 +212,34 @@ namespace AudioSwitcher.CoreAudio
         [PreserveSig] int ReleaseBuffer(uint NumFramesWritten, uint dwFlags);
     }
 
+    [Guid("C8ADBD64-E71E-48A0-A4DE-185C395CD317"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IAudioCaptureClient
+    {
+        [PreserveSig] int GetBuffer(out IntPtr ppData, out uint pNumFramesToRead, out uint pdwFlags, out ulong pu64DevicePosition, out ulong pu64QPCPosition);
+        [PreserveSig] int ReleaseBuffer(uint NumFramesRead);
+        [PreserveSig] int GetNextPacketSize(out uint pNumFramesInNextPacket);
+    }
+
+    [Flags]
+    public enum AUDCLNT_BUFFERFLAGS : uint
+    {
+        None = 0,
+        DATA_DISCONTINUITY = 0x1,
+        SILENT = 0x2,
+        TIMESTAMP_ERROR = 0x4
+    }
+
+    public static class AudioClientStreamFlags
+    {
+        public const uint CrossProcess = 0x00010000;
+        public const uint Loopback = 0x00020000;
+        public const uint EventCallback = 0x00040000;
+        public const uint NoPersist = 0x00080000;
+        public const uint RateAdjust = 0x00100000;
+        public const uint SrcDefaultQuality = 0x08000000;
+        public const uint AutoConvertPcm = 0x80000000;
+    }
+
     #endregion
 
     #region PolicyConfig Client

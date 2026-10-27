@@ -28,6 +28,7 @@ namespace AudioSwitcher
                 {
                     string msg = $"Unhandled UI Exception:\n{args.Exception}";
                     System.IO.File.AppendAllText("crash_log.txt", $"[{DateTime.Now}] {msg}\n\n");
+                    VirtualAudioBridgeService.Instance.RestoreDirectHardwareOnShutdown();
                     MessageBox.Show(args.Exception.Message, "AudioSwitcher Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
                 catch { }
@@ -40,6 +41,7 @@ namespace AudioSwitcher
                 {
                     string msg = $"Unhandled AppDomain Exception:\n{args.ExceptionObject}";
                     System.IO.File.AppendAllText("crash_log.txt", $"[{DateTime.Now}] {msg}\n\n");
+                    VirtualAudioBridgeService.Instance.RestoreDirectHardwareOnShutdown();
                 }
                 catch { }
             };
@@ -183,6 +185,7 @@ namespace AudioSwitcher
             // Initialize services
             _ = SettingsService.Instance;
             _ = AudioDeviceManager.Instance;
+            _ = VirtualAudioBridgeService.Instance;
             _ = PrioritySwitcherService.Instance;
 
             // Initialize system tray icon
@@ -216,6 +219,7 @@ namespace AudioSwitcher
         {
             Dispatcher.Invoke(() =>
             {
+                VirtualAudioBridgeService.Instance.RestoreDirectHardwareOnShutdown();
                 _trayIconManager?.Dispose();
                 if (_mainWindow != null && !_mainWindow.IsClosed)
                 {
@@ -238,6 +242,8 @@ namespace AudioSwitcher
             catch { }
 
             _trayIconManager?.Dispose();
+            VirtualAudioBridgeService.Instance.RestoreDirectHardwareOnShutdown();
+            VirtualAudioBridgeService.Instance.Dispose();
             AudioDeviceManager.Instance.Dispose();
 
             if (_ownsMutex && _mutex != null)

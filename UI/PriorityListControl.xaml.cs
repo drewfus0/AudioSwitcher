@@ -153,7 +153,7 @@ namespace AudioSwitcher.UI
                            ?? devices.FirstOrDefault(d => string.Equals(d.Name, p.Name, StringComparison.OrdinalIgnoreCase));
 
                     bool isConnected = dev != null && dev.IsActive;
-                    bool isDefault = dev != null && dev.IsDefault(_category);
+                    bool isDefault = dev != null && PrioritySwitcherService.Instance.IsDeviceEffectivelyActive(dev, _category);
                     bool isThisTempOverride = hasTempOverride && (
                         string.Equals(p.Id, tempOverrideId, StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(p.Name, tempOverrideId, StringComparison.OrdinalIgnoreCase));
@@ -233,6 +233,9 @@ namespace AudioSwitcher.UI
                 foreach (var d in devices)
                 {
                     if (SettingsService.Instance.IsDeviceIgnored(d.Id, d.Name))
+                        continue;
+
+                    if (d.IsVirtualCable && _category.GetDataFlow() == EDataFlow.eRender)
                         continue;
 
                     bool inList = priorities.Any(p => string.Equals(p.Id, d.Id, StringComparison.OrdinalIgnoreCase)

@@ -193,6 +193,24 @@ namespace AudioSwitcher.UI
             };
             _contextMenu.Items.Add(autoSwitchItem);
 
+            // 5b. Anti-Crash Audio Bridge (VB-CABLE) Toggle
+            var bridge = VirtualAudioBridgeService.Instance;
+            if (bridge.IsVirtualCableAvailable)
+            {
+                bool isBridgeOn = bridge.IsVirtualBridgeEnabled;
+                var bridgeItem = new ToolStripMenuItem(isBridgeOn ? "🛡️ Anti-Crash Bridge: ON (VB-CABLE)" : "⚡ Audio Routing: Direct Hardware")
+                {
+                    Checked = isBridgeOn,
+                    ForeColor = isBridgeOn ? Color.FromArgb(56, 189, 248) : Color.FromArgb(245, 158, 11)
+                };
+                bridgeItem.Click += (s, e) =>
+                {
+                    bridge.IsVirtualBridgeEnabled = !isBridgeOn;
+                    PrioritySwitcherService.Instance.EvaluateAllPriorities();
+                };
+                _contextMenu.Items.Add(bridgeItem);
+            }
+
             // 6. Open Main Window
             var openItem = new ToolStripMenuItem("Open AudioSwitcher")
             {
@@ -248,7 +266,10 @@ namespace AudioSwitcher.UI
 
             foreach (var device in devices)
             {
-                bool isDefault = device.IsDefault(category);
+                if (device.IsVirtualCable && category.GetDataFlow() == EDataFlow.eRender)
+                    continue;
+
+                bool isDefault = PrioritySwitcherService.Instance.IsDeviceEffectivelyActive(device, category);
                 bool isTempOverride = !string.IsNullOrEmpty(tempOverrideId) &&
                     (string.Equals(device.Id, tempOverrideId, StringComparison.OrdinalIgnoreCase) ||
                      string.Equals(device.Name, tempOverrideId, StringComparison.OrdinalIgnoreCase));

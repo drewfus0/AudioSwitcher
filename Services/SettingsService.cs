@@ -96,6 +96,11 @@ namespace AudioSwitcher.Services
         public bool StartMinimized { get; set; } = true;
         public bool CloseToTray { get; set; } = true;
 
+        // Virtual Audio Cable / Anti-Crash Audio Bridge & Multi-Output
+        public bool UseVirtualAudioBridge { get; set; } = true;
+        public bool EnableMultiOutput { get; set; } = false;
+        public List<string> MultiOutputDeviceIds { get; set; } = new();
+
         // Volume Mapping & Normalization
         public bool EnableVolumeMappingOnSwitch { get; set; } = true;
         public string ReferenceDeviceId { get; set; } = string.Empty;

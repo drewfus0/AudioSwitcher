@@ -58,6 +58,7 @@ namespace AudioSwitcher.Services
 
             _deviceManager.DevicesUpdated += OnDevicesUpdated;
             _settingsService.SettingsChanged += OnSettingsChanged;
+            VirtualAudioBridgeService.Instance.BridgeStateChanged += _ => EvaluateAllPriorities();
 
             // Initial check
             EvaluateAllPriorities();
@@ -90,6 +91,31 @@ namespace AudioSwitcher.Services
             }
         }
 
+        public bool IsDeviceEffectivelyActive(AudioDevice device, AudioCategory category)
+        {
+            var bridge = VirtualAudioBridgeService.Instance;
+            if (bridge.IsVirtualBridgeEnabled && bridge.IsVirtualCableAvailable && category.GetDataFlow() == EDataFlow.eRender)
+            {
+                return string.Equals(device.Id, bridge.ActivePrimaryTargetDeviceId, StringComparison.OrdinalIgnoreCase);
+            }
+            return device.IsDefault(category);
+        }
+
+        private bool ApplyDeviceSwitch(string deviceId, AudioCategory category)
+        {
+            var bridge = VirtualAudioBridgeService.Instance;
+            if (bridge.IsVirtualBridgeEnabled && bridge.IsVirtualCableAvailable && category.GetDataFlow() == EDataFlow.eRender)
+            {
+                bridge.SetPrimaryTargetDevice(deviceId);
+                bridge.SwitchToVirtualBridge();
+                return true;
+            }
+            else
+            {
+                return _deviceManager.SetDefaultDevice(deviceId, category);
+            }
+        }
+
         public void SetTemporaryOverride(AudioCategory category, string deviceId)
         {
             // Apply volume mapping from current default if applicable
@@ -107,7 +133,7 @@ namespace AudioSwitcher.Services
                 }
             }
 
-            bool success = _deviceManager.SetDefaultDevice(deviceId, category);
+            bool success = ApplyDeviceSwitch(deviceId, category);
             var dev = _deviceManager.GetDeviceById(deviceId);
             if (dev != null && success)
             {
@@ -212,7 +238,7 @@ namespace AudioSwitcher.Services
 
             var flow = category.GetDataFlow();
             var activeDevices = _deviceManager.GetDevices(flow)
-                .Where(d => d.IsActive && !_settingsService.IsDeviceIgnored(d.Id, d.Name))
+                .Where(d => d.IsActive && (!d.IsVirtualCable || flow != EDataFlow.eRender) && !_settingsService.IsDeviceIgnored(d.Id, d.Name))
                 .ToList();
 
             if (activeDevices.Count == 0)
@@ -232,11 +258,11 @@ namespace AudioSwitcher.Services
 
                 if (overrideDev != null)
                 {
-                    // Override device is connected and valid: retain as default
-                    if (!overrideDev.IsDefault(category))
+                    // Override device is connected and valid: retain as active
+                    if (!IsDeviceEffectivelyActive(overrideDev, category))
                     {
                         ApplyVolumeMappingIfEnabled(category, overrideDev.Id);
-                        bool success = _deviceManager.SetDefaultDevice(overrideDev.Id, category);
+                        bool success = ApplyDeviceSwitch(overrideDev.Id, category);
                         if (success)
                         {
                             DeviceAutoSwitched?.Invoke(category, overrideDev);
@@ -324,12 +350,12 @@ namespace AudioSwitcher.Services
             if (targetDevice == null)
                 return;
 
-            // Check if it's already the default
-            bool isAlreadyDefault = targetDevice.IsDefault(category);
-            if (!isAlreadyDefault)
+            // Check if it's already effectively active
+            bool isAlreadyActive = IsDeviceEffectivelyActive(targetDevice, category);
+            if (!isAlreadyActive)
             {
                 ApplyVolumeMappingIfEnabled(category, targetDevice.Id);
-                bool success = _deviceManager.SetDefaultDevice(targetDevice.Id, category);
+                bool success = ApplyDeviceSwitch(targetDevice.Id, category);
                 if (success)
                 {
                     DeviceAutoSwitched?.Invoke(category, targetDevice);

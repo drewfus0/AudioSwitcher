@@ -1,0 +1,9 @@
+Device: CABLE In 16ch (VB-Audio Virtual Cable) (eRender)
+  FormatTag: 0xFFFE, Channels: 2, Rate: 48000, Bits: 32, Align: 8
+Device: Headphones (Qudelix-5K) (eRender)
+  FormatTag: 0xFFFE, Channels: 2, Rate: 48000, Bits: 32, Align: 8
+Device: CABLE Input (VB-Audio Virtual Cable) (eRender)
+  FormatTag: 0xFFFE, Channels: 2, Rate: 48000, Bits: 32, Align: 8
+Device: CABLE Output (VB-Audio Virtual Cable) (eCapture)
+  FormatTag: 0xFFFE, Channels: 2, Rate: 48000, Bits: 32, Align: 8
+ee

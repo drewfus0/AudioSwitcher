@@ -17,6 +17,9 @@ not worried about inputs for now.
 
 ~~-> first time i right click on the task bar icon the menu fails to come up and requres a second try.~~
 ~~-> add toast notifications when the auto-switch happens. e.g. "Switched to my speakers (USB)"~~
+~~-> Anti-crash protection via VB-Audio Virtual Cable bridge for playback/output devices (prevents game/browser crashes when switching to unstable Bluetooth/USB devices).~~
+~~-> Direct hardware mode toggle and automatic fallback to direct hardware on app exit/shutdown.~~
+~~-> Multi-output simultaneous audio playback/mirroring support across multiple devices.~~
 
 big ideas for later.(ignore for now.)
 ->app based priority lists?

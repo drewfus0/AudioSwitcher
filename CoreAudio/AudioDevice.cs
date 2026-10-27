@@ -64,6 +64,10 @@ namespace AudioSwitcher.CoreAudio
             _ => "Unknown"
         };
 
+        public bool IsVirtualCable =>
+            Name.Contains("CABLE", StringComparison.OrdinalIgnoreCase) &&
+            (Name.Contains("VB-Audio", StringComparison.OrdinalIgnoreCase) || DeviceDesc.Contains("VB-Audio", StringComparison.OrdinalIgnoreCase));
+
         public bool IsDefaultSound
         {
             get => _isDefaultSound;

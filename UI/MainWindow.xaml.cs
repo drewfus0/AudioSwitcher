@@ -57,6 +57,8 @@ namespace AudioSwitcher.UI
             ChkOptStartMinimized.IsChecked = settings.StartMinimized;
             ChkOptCloseToTray.IsChecked = settings.CloseToTray;
             ChkOptVolumeMapping.IsChecked = settings.EnableVolumeMappingOnSwitch;
+            ChkOptVirtualBridge.IsChecked = VirtualAudioBridgeService.Instance.IsVirtualBridgeEnabled;
+            ChkOptMultiOutput.IsChecked = settings.EnableMultiOutput;
 
             // Register events
             AudioDeviceManager.Instance.DevicesUpdated += OnDevicesUpdated;
@@ -64,7 +66,16 @@ namespace AudioSwitcher.UI
             PrioritySwitcherService.Instance.TemporaryOverrideChanged += OnTemporaryOverrideChanged;
             SettingsService.Instance.SettingsChanged += OnSettingsChanged;
 
+            VirtualAudioBridgeService.Instance.BridgeStateChanged += _ => Dispatcher.Invoke(UpdateBridgeUi);
+            VirtualAudioBridgeService.Instance.PrimaryTargetChanged += _ => Dispatcher.Invoke(() =>
+            {
+                UpdateBridgeUi();
+                RefreshSecondaryOutputsList();
+            });
+
             RefreshHiddenDevices();
+            UpdateBridgeUi();
+            RefreshSecondaryOutputsList();
             UpdateStatus("Listening for audio device changes");
         }
 
@@ -261,6 +272,15 @@ namespace AudioSwitcher.UI
             settings.CloseToTray = ChkOptCloseToTray.IsChecked == true;
             settings.EnableVolumeMappingOnSwitch = ChkOptVolumeMapping.IsChecked == true;
 
+            bool prevBridge = settings.UseVirtualAudioBridge;
+            bool newBridge = ChkOptVirtualBridge.IsChecked == true;
+            settings.UseVirtualAudioBridge = newBridge;
+
+            bool prevMulti = settings.EnableMultiOutput;
+            bool newMulti = ChkOptMultiOutput.IsChecked == true;
+            settings.EnableMultiOutput = newMulti;
+            PanelSecondaryOutputs.Visibility = newMulti ? Visibility.Visible : Visibility.Collapsed;
+
             bool prevMatchOut = settings.MatchOutputCommsToSound;
             bool prevMatchIn = settings.MatchInputCommsToSound;
             bool newMatchOut = ChkOptMatchOutputComms.IsChecked == true;
@@ -275,9 +295,134 @@ namespace AudioSwitcher.UI
 
             SettingsService.Instance.Save();
 
+            if (prevBridge != newBridge)
+            {
+                if (newBridge)
+                    VirtualAudioBridgeService.Instance.SwitchToVirtualBridge();
+                else
+                    VirtualAudioBridgeService.Instance.SwitchToDirectHardware();
+
+                PrioritySwitcherService.Instance.EvaluateAllPriorities();
+                UpdateBridgeUi();
+            }
+
+            if (prevMulti != newMulti)
+            {
+                RefreshSecondaryOutputsList();
+            }
+
             if (prevMatchOut != newMatchOut || prevMatchIn != newMatchIn)
             {
                 PrioritySwitcherService.Instance.EvaluateAllPriorities();
+            }
+        }
+
+        private void BorderBridgeMode_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var bridge = VirtualAudioBridgeService.Instance;
+            bridge.IsVirtualBridgeEnabled = !bridge.IsVirtualBridgeEnabled;
+            ChkOptVirtualBridge.IsChecked = bridge.IsVirtualBridgeEnabled;
+            PrioritySwitcherService.Instance.EvaluateAllPriorities();
+            UpdateBridgeUi();
+        }
+
+        private void BtnDirectHardwareNow_Click(object sender, RoutedEventArgs e)
+        {
+            var bridge = VirtualAudioBridgeService.Instance;
+            bridge.IsVirtualBridgeEnabled = false;
+            ChkOptVirtualBridge.IsChecked = false;
+            PrioritySwitcherService.Instance.EvaluateAllPriorities();
+            UpdateBridgeUi();
+            UpdateStatus("Switched direct to hardware playback.");
+        }
+
+        private void UpdateBridgeUi()
+        {
+            var bridge = VirtualAudioBridgeService.Instance;
+            bool available = bridge.IsVirtualCableAvailable;
+            bool enabled = bridge.IsVirtualBridgeEnabled;
+
+            if (!available)
+            {
+                BorderBridgeMode.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 39, 42));
+                BorderBridgeMode.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(82, 82, 91));
+                TxtBridgeIcon.Text = "⚠️";
+                TxtBridgeTitle.Text = "Direct Mode";
+                TxtBridgeTitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(161, 161, 170));
+                TxtBridgeSubtitle.Text = "VB-CABLE Not Found";
+                TxtBridgeSubtitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(113, 113, 122));
+
+                TxtBridgeStatusText.Text = "VB-CABLE Not Detected. Using Direct Hardware Mode.";
+                TxtBridgeStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(248, 113, 113));
+                BtnDirectHardwareNow.IsEnabled = false;
+            }
+            else if (enabled)
+            {
+                BorderBridgeMode.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(12, 43, 71));
+                BorderBridgeMode.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(2, 132, 199));
+                TxtBridgeIcon.Text = "🛡️";
+                TxtBridgeTitle.Text = "Anti-Crash Bridge";
+                TxtBridgeTitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(56, 189, 248));
+                TxtBridgeSubtitle.Text = "VB-CABLE Active";
+                TxtBridgeSubtitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(125, 211, 252));
+
+                var primaryDev = AudioDeviceManager.Instance.GetDeviceById(bridge.ActivePrimaryTargetDeviceId ?? string.Empty);
+                string targetName = primaryDev?.Name ?? "Hardware";
+                TxtBridgeStatusText.Text = $"VB-CABLE Ready & Active ➔ Forwarding to: {targetName}";
+                TxtBridgeStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 222, 128));
+                BtnDirectHardwareNow.IsEnabled = true;
+            }
+            else
+            {
+                BorderBridgeMode.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(42, 34, 21));
+                BorderBridgeMode.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(217, 119, 6));
+                TxtBridgeIcon.Text = "⚡";
+                TxtBridgeTitle.Text = "Direct Mode";
+                TxtBridgeTitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(251, 191, 36));
+                TxtBridgeSubtitle.Text = "Direct to Hardware";
+                TxtBridgeSubtitle.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(252, 211, 77));
+
+                TxtBridgeStatusText.Text = "VB-CABLE Ready (Paused). Windows default is routed direct to hardware.";
+                TxtBridgeStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(251, 191, 36));
+                BtnDirectHardwareNow.IsEnabled = false;
+            }
+
+            PanelSecondaryOutputs.Visibility = SettingsService.Instance.Settings.EnableMultiOutput ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void RefreshSecondaryOutputsList()
+        {
+            var bridge = VirtualAudioBridgeService.Instance;
+            var settings = SettingsService.Instance.Settings;
+
+            var renderDevices = AudioDeviceManager.Instance.GetDevices(EDataFlow.eRender)
+                .Where(d => d.IsActive && !d.IsVirtualCable && !string.Equals(d.Id, bridge.ActivePrimaryTargetDeviceId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var list = new System.Collections.Generic.List<SecondaryOutputItem>();
+            foreach (var d in renderDevices)
+            {
+                bool isMirrored = settings.MultiOutputDeviceIds.Contains(d.Id, StringComparer.OrdinalIgnoreCase);
+                list.Add(new SecondaryOutputItem
+                {
+                    Id = d.Id,
+                    Name = d.Name,
+                    IsMirrored = isMirrored
+                });
+            }
+
+            ItemsSecondaryOutputs.ItemsSource = list;
+            bridge.SetSecondaryTargetDevices(settings.MultiOutputDeviceIds);
+        }
+
+        private void SecondaryOutputCheckbox_Click(object sender, RoutedEventArgs e)
+        {
+            if (ItemsSecondaryOutputs.ItemsSource is System.Collections.Generic.IEnumerable<SecondaryOutputItem> items)
+            {
+                var settings = SettingsService.Instance.Settings;
+                settings.MultiOutputDeviceIds = items.Where(x => x.IsMirrored).Select(x => x.Id).ToList();
+                SettingsService.Instance.Save();
+                VirtualAudioBridgeService.Instance.SetSecondaryTargetDevices(settings.MultiOutputDeviceIds);
             }
         }
 
@@ -412,5 +557,28 @@ namespace AudioSwitcher.UI
 
         public string ActionButtonText => IsIgnored ? "✓ Unhide / Restore" : "🚫 Hide Device";
         public string ActionButtonTooltip => IsIgnored ? "Restore this device so it appears in priority lists and tray menus" : "Hide this device and exclude it from auto-switching";
+    }
+
+    public class SecondaryOutputItem : INotifyPropertyChanged
+    {
+        private bool _isMirrored;
+
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+
+        public bool IsMirrored
+        {
+            get => _isMirrored;
+            set
+            {
+                if (_isMirrored != value)
+                {
+                    _isMirrored = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsMirrored)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
